@@ -14,6 +14,7 @@ integer, parameter :: TCP_PORT_1 = 5001		! data transfer port (plotting)
 
 real(REAL_KIND), parameter :: PI = 4*atan(1.0)
 real(REAL_KIND), parameter :: g_threshold = 0.8
+real(REAL_KIND), parameter :: Flimit = 4
 
 type cell_type
 	real(REAL_KIND) :: a, b         ! current axes (um)

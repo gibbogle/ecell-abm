@@ -242,6 +242,7 @@ if (incontact) then
     vamp = sqrt(dot_product(v,v))
     v = v/vamp        ! unit vector in direction P1 -> P2
 	call CellContactForce(delta, famp)  ! Note: famp > 0 ==> attraction
+	famp = max(famp,-Flimit)
     F = famp*v          ! force in the direction of v, i.e. from P1 to P2
 	ell1%F = ell1%F + F
 	ell2%F = ell2%F - F

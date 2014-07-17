@@ -23,7 +23,7 @@ Params::Params()
 "Length of the simulation.\n\
 [hours]"},
 
-{"DELTA_T", 120.0, 0, 0,
+{"DELTA_T", 30.0, 0, 0,
 "Time step",
 "Length of main time step, for cell death, division, etc.  Should be a divisor of 3600. \n\
 [sec]"},
@@ -49,7 +49,7 @@ Params::Params()
 "Velocity v = F/Fdrag, angular velocity w = M/Mdrag\n\
     F = total force vector, M = total moment vector, Fdrag = force drag coefficient, Mdrag = moment drag coefficient."},
 
-{"M_DRAG", 7, 0, 0,
+{"M_DRAG", 20, 0, 0,
 "Moment drag factor",
 "Moment drag factor."},
 
@@ -63,14 +63,14 @@ Params::Params()
 "Moment smoothing factor",
 "Moment smoothing factor."},
 
-{"F_JIGGLE", 0.05, 0, 0,
+{"F_JIGGLE", 0.005, 0, 0,
 "Jiggle factor",
 "A random perturbation can be applied to cell motion, independently to linear and angular velocities:\n\
  Each component of velocity is perturbed by dv = R*Fjiggle/Fdrag\n\
  and each component of angular velocity is perturbed by dw = R*Mjiggle/Mdrag \n\
  where a value of Gaussian(0,1) distributed random variate R is generated for each velocity component."},
 
-{"M_JIGGLE", 0.15, 0, 0,
+{"M_JIGGLE", 0.01, 0, 0,
 "Moment jiggle factor",
 "Moment jiggle factor."},
 
