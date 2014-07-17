@@ -219,53 +219,6 @@ enddo
 end subroutine
 
 !----------------------------------------------------------------------------------------
-! WRONG
-!----------------------------------------------------------------------------------------
-subroutine CellInteraction1(ell1, ell2)
-type(cell_type) :: ell1, ell2
-type(line_type) :: line1, line2
-real(REAL_KIND) :: s1, s2
-real(REAL_KIND) :: a, b, s, theta1, theta2, v(3), d1, d2, d12, delta
-real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of ell1 and ell2
-real(REAL_KIND) :: q1(3), q2(3)		! Contact points on ell1 and ell2
-real(REAL_KIND) :: r1(3), r2(3)		! Displacement of contact points on ell1 and ell2 relative to centres
-real(REAL_KIND) :: famp, F(3), M1(3), M2(3)
-
-call NormaliseOrient(ell1)
-call NormaliseOrient(ell2)
-line1%p1 = ell1%centre - ell1%a*ell1%orient
-line1%p2 = ell1%centre + ell1%a*ell1%orient
-line2%p1 = ell2%centre - ell2%a*ell2%orient
-line2%p2 = ell2%centre + ell2%a*ell2%orient
-
-call NearestPoints(line1, line2, s1, s2)
-!write(*,*) 's1, s2: ',s1,s2
-call ContactAngles(ell1, ell2, s1, s2, theta1, theta2, v, d12)
-call InsideDistance(ell1%a, ell1%b, s1, theta1, d1)
-!write(*,*) 'theta1, d1: ',theta1,d1
-call InsideDistance(ell2%a, ell2%b, s2, theta2, d2)
-!write(*,*) 'theta2, d2: ',theta2,d2
-!write(*,*) 'd12, d1+d2: ',d12,d1+d2
-delta = d12 - d1 - d2	! this is the cell separation at the "closest" points
-if (delta < dthreshold) then	! there is a force to compute in the direction given by v (P1 -> P2)
-	call CellContactForce(delta, famp)
-	! F acts on ell1 at q1 in the direction -v, and on ell2 at q2 in the direction v
-!	p1 = ell1%centre + (s1-0.5)*ell1%a*ell1%orient
-!	p2 = ell2%centre + (s2-0.5)*ell2%a*ell2%orient
-!	q1 = p1 + d1*v
-!	q2 = p2 - d2*v*
-!	r1 = q1 - ell1%centre	
-!	r2 = q2 - ell2%centre	
-	r1 = (2*s1-1)*ell1%a*ell1%orient + d1*v
-	r2 = (2*s2-1)*ell2%a*ell2%orient - d2*v
-	! M1 = r1 x F, M2 = r2 x F
-	F = famp*v
-	call cross_product(r1,F,M1)
-	call cross_product(r2,F,M2)
-endif
-end subroutine
-
-!----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
 subroutine CellInteraction(ell1, ell2)
 type(cell_type) :: ell1, ell2

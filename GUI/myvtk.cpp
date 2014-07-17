@@ -103,12 +103,9 @@ MyVTK::MyVTK(QWidget *page, QWidget *key_page)
 	iren->Initialize();
 
 	// Create mappers
-	createMappers();
-
+    createMappers();
     Eactor = vtkSmartPointer<vtkActor>::New();
     Eactor->SetMapper(Emapper);
-//    ren->AddActor(Eactor);
-    int na = ren->GetActors()->GetNumberOfItems();  // to check if Eactor needs to be added
 
 // Create image filter for save Snapshot()
 //	w2img = vtkWindowToImageFilter::New();
@@ -216,7 +213,6 @@ void MyVTK::createMappers()
     Etensors = vtkSmartPointer<vtkDoubleArray>::New();
     Etensors->SetNumberOfComponents(9);
     EpolyData->GetPointData()->SetTensors(Etensors);
-//    Etensors->SetNumberOfTuples(1);
 
     EsphereSource = vtkSmartPointer<vtkSphereSource>::New();
     EsphereSource->Update();
@@ -225,6 +221,7 @@ void MyVTK::createMappers()
     EsphereSource->SetRadius(1.0);
 
     EtensorGlyph = vtkSmartPointer<vtkTensorGlyph>::New();
+//    EtensorGlyph->SetSourceConnection(EsphereSource->GetOutputPort());   // Both methods work
     EtensorGlyph->SetSource(EsphereSource->GetOutput());
     EtensorGlyph->SetInput(EpolyData);
     EtensorGlyph->ColorGlyphsOff();
@@ -233,9 +230,9 @@ void MyVTK::createMappers()
 //    EtensorGlyph->Update();
 
     Emapper = vtkSmartPointer<vtkPolyDataMapper>::New();
-    Emapper->SetInputConnection(EtensorGlyph->GetOutputPort());
+//    Emapper->SetInputConnection(EtensorGlyph->GetOutputPort());   // Both methods work
+    Emapper->SetInput(EtensorGlyph->GetOutput());
 }
-
 
 //-----------------------------------------------------------------------------------------
 // The cell info is fetched from the DLL by ExecThread::snapshot().
@@ -262,6 +259,15 @@ void MyVTK::init()
 {
     Epoints->Reset();
     Etensors->Reset();
+//    EpolyData->Reset();
+//    EpolyData->SetPoints(Epoints);
+//    EpolyData->GetPointData()->SetTensors(Etensors);
+//    EtensorGlyph->SetInput(EpolyData);
+//    Emapper = vtkSmartPointer<vtkPolyDataMapper>::New();
+//    Emapper->SetInput(EtensorGlyph->GetOutput());
+//    Eactor->SetMapper(Emapper);
+    sprintf(msg,"init: EpolyData->GetNumberOfPoints(): %d",EpolyData->GetNumberOfPoints());
+    LOG_MSG(msg);
 }
 
 //---------------------------------------------------------------------------------------------

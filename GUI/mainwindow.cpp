@@ -1758,7 +1758,8 @@ void MainWindow::preConnection()
     initializeGraphs(newR);
     LOG_MSG("did initializeGraphs");
     posdata = false;
-	LOG_MSG("preconnection: done");
+    vtk->init();
+    LOG_MSG("preconnection: done");
 }
 
 //--------------------------------------------------------------------------------------------------------

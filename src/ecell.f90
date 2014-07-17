@@ -43,18 +43,18 @@ contains
 !
 ! We can think of a growth model with two parameters.
 ! alpha = aspect ratio of "normal" cell at this location
-! gamma = level of constancy of the aspect ratio.
-!    gamma = 0 gives Case 1, in which b = b_n is constant
-!    gamma = 1 gives Case 2, in which a/b = alpha is constant
-!    for intermediate values of gamma: 
+! beta = level of constancy of the aspect ratio.
+!    beta = 0 gives Case 1, in which b = b_n is constant
+!    beta = 1 gives Case 2, in which a/b = alpha is constant
+!    for intermediate values of beta: 
 !
-!    a = a_n(0.8(g+1))^(1 - (2/3)gamma)
-!    b = b_n(0.8(g+1))^(gamma/3)
+!    a = a_n(0.8(g+1))^(1 - (2/3)beta)
+!    b = b_n(0.8(g+1))^(beta/3)
 !
-! Before the instant of cell division the cell shape must transition to gamma=0, such that the
-! total length after division matches the parent cell length.  After division the two progeny cells
-! must immediately begin the shape transition back to the specified gamma.  Again, this transition
-! should occur over some fixed time interval (e.g. 30 min).
+! Before the instant of cell division the cell shape must transition to a1 = 2.a0, such that the
+! total length after division matches the parent cell length.  
+! At g=1, a1 = 2.a0, where a0 = a_n.0.8^(1 - (2/3)beta)
+! This transition should occur over some fixed time interval (e.g. 30 min).
 !----------------------------------------------------------------------------------------
 subroutine test
 type(cell_type) :: ell1, ell2
@@ -97,6 +97,12 @@ read(nfin,*) seed(1)
 read(nfin,*) seed(2)
 read(nfin,*) ncpu_input
 read(nfin,*) nt_anim
+read(nfin,*) Fdrag
+read(nfin,*) Mdrag
+read(nfin,*) Falpha
+read(nfin,*) Malpha
+read(nfin,*) Fjigglefactor
+read(nfin,*) Mjigglefactor
 read(nfin,*) cellmlfile
 close(nfin)
 
@@ -114,7 +120,7 @@ integer :: ncpu
 character*(*) :: infile, outfile
 logical :: ok
 character*(64) :: msg
-integer :: error
+integer :: kcell, error
 
 ok = .true.
 initialized = .false.
@@ -151,7 +157,9 @@ call logger(logmsg)
 call RngInitialisation
 
 call PlaceCells
-call SetNeighbours
+do kcell = 1,ncells
+	call SetNeighbours(kcell)
+enddo
 write(nflog,*) 'ncells: ',ncells
 
 end subroutine
@@ -160,23 +168,23 @@ end subroutine
 !-----------------------------------------------------------------------------------------
 subroutine PlaceCells
 integer :: ix, iy, iz, kcell, i, kpar=0
-real(REAL_KIND) :: dx, dy, dz, x, y, z
-real(REAL_KIND) :: centre(3), orient(3), orient0(3), a, b, g, alpha_n, gamma
+real(REAL_KIND) :: dx, dy, dz, x, y, z, a, b
+real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta, cycletime, age
 
-maxcells = 10000
 if (allocated(cell_list)) then
 	deallocate(cell_list)
 endif
-allocate(cell_list(maxcells))
+allocate(cell_list(MAX_CELLS))
 a = 5
 b = 3
+Vn = (4./3.)*PI*a*b**2
+aspect = a/b
+beta = 1.0
+cycletime = 12*60	! 12 hours -> minutes
 dx = 2*b
 dy = dx
 dz = 2*a
 orient0 = (/ 0., 0., 1. /)
-g = 0
-alpha_n = dz/dx
-gamma = 1.0
 kcell = 0
 do ix = 1,7
     do iy = 1,7
@@ -188,8 +196,10 @@ do ix = 1,7
             do i = 1,3
                 orient(i) = orient0(i) + 2.0*(par_uni(kpar) -0.5)
             enddo
+            age = cycletime*par_uni(kpar)
             kcell = kcell + 1
-            call CreateCell(kcell,centre,orient,a,g,alpha_n,gamma)
+!            call CreateCell(kcell,centre,orient,a,g,alpha_n,beta)
+			call CreateCell(kcell,centre,orient,Vn,aspect,beta,cycletime,age)
         enddo
     enddo
 enddo
@@ -197,13 +207,72 @@ ncells = kcell
 end subroutine
 
 !-----------------------------------------------------------------------------------------
+! Should specify:
+!    Vn, aspect, beta, cycletime, age
+!    centre, orient
+!
+!    a = a_n(0.8(g+1))^(1 - (2/3)beta)
+!    b = b_n(0.8(g+1))^(beta/3) 
 !-----------------------------------------------------------------------------------------
-subroutine SetNeighbours
-integer :: kcell, n, jcell, nbrlist(100)
+subroutine CreateCell(kcell,centre,orient,Vn,aspect,beta,cycletime,age)
+integer :: kcell
+real(REAL_KIND) :: centre(3),orient(3),Vn,aspect,beta,cycletime,age
+real(REAL_KIND) :: g, tnow
+type(cell_type), pointer :: p
+
+tnow = max(istep*DELTA_T,0.0)
+p => cell_list(kcell)
+p%centre = centre
+p%orient = orient
+p%cycletime = cycletime
+p%birthtime = tnow - age
+g = GrowthFunction(age,cycletime)
+p%aspect_n = aspect
+p%beta = beta
+p%V_n = Vn
+p%b_n = (3*Vn/(4*PI*aspect))**(1./3.)
+p%a_n = aspect*p%b_n
+p%a = p%a_n*(0.8*(g+1))**(1-2*beta/3)
+p%b = p%b_n*(0.8*(g+1))**(beta/3)
+p%Fprev = 0
+p%Mprev = 0
+allocate(p%nbrlist(MAX_NBRS))
+call NormaliseOrient(p)
+write(nflog,'(a,i6,2f8.2)') 'a, b: ',kcell,p%a,p%b
+end subroutine
+
+!-----------------------------------------------------------------------------------------
+subroutine CreateCell1(kcell,centre,orient,a,g,alpha_n,beta)
+integer :: kcell
+real(REAL_KIND) :: centre(3),orient(3),a,g,alpha_n,beta
+type(cell_type), pointer :: p
+
+p => cell_list(kcell)
+p%centre = centre
+p%orient = orient
+p%a = a
+p%aspect_n = alpha_n
+p%beta = beta
+p%a_n = a/(0.8*(g+1))**(1 - (2./3.)*beta)
+p%b_n = p%a_n/alpha_n
+p%V_n = (4./3.)*PI*p%a*p%b**2
+p%b = p%b_n*(0.8*(g+1))**(beta/3)
+p%Fprev = 0
+p%Mprev = 0
+allocate(p%nbrlist(MAX_NBRS))
+call NormaliseOrient(p)
+end subroutine
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+subroutine SetNeighbours(kcell)
+integer :: kcell
+integer :: n, jcell, nbrlist(100)
 real(REAL_KIND) :: c0(3), c1(3), r(3), d2, d2lim
 type(cell_type), pointer :: p
 
-do kcell = 1,ncells
+write(nflog,*) 'SetNeighbours: ',kcell
+!do kcell = 1,ncells
     p => cell_list(kcell)
     d2lim = (2.5*p%a)**2
     c0 = p%centre
@@ -214,6 +283,10 @@ do kcell = 1,ncells
         r = c1 - c0
         d2 = dot_product(r,r)
         if (d2 < d2lim) then
+			if (n == MAX_NBRS) then
+				write(nflog,*) 'Error: SetNeighbours: n > MAX_NBRS'
+				stop
+			endif
             n = n+1
             p%nbrlist(n) = jcell
         endif
@@ -221,88 +294,60 @@ do kcell = 1,ncells
 !    write(nflog,'(a,i6,a,i2)') 'cell: ',kcell,' nbrs: ',n
 !    write(nflog,'(15i5)') p%nbrlist(1:n)
     p%nbrs = n
-enddo
+!enddo
 end subroutine
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
 subroutine SumContacts
 integer :: kcell, k, jcell
-real(REAL_KIND) :: delta, s1, s2, famp, mamp, fmax, mmax
+real(REAL_KIND) :: delta, s1, s2, famp, mamp, fsum, msum
 logical :: incontact
 type(cell_type), pointer :: p, p1
-real(REAL_KIND), parameter :: alpha = 0.5
 
-write(nflog,*) 'SumContacts'
 do kcell = 1,ncells
     p => cell_list(kcell)
     p%F = 0
     p%M = 0
 enddo
-fmax = 0
-mmax = 0
+fsum = 0
+msum = 0
 do kcell = 1,ncells
     p => cell_list(kcell)
-!    write(nflog,*) kcell,p0%nbrs
     do k = 1,p%nbrs
         jcell = p%nbrlist(k)
         p1 => cell_list(jcell)
         call CellInteraction(p,p1)
     enddo
-!    famp = sqrt(dot_product(p%F,p%F))
-!    fmax = max(fmax,famp)
-!    mamp = sqrt(dot_product(p%M,p%M))
-!    mmax = max(mmax,mamp)
+    famp = sqrt(dot_product(p%F,p%F))
+    fsum = fsum + famp
+    mamp = sqrt(dot_product(p%M,p%M))
+    msum = msum + mamp
 enddo
 do kcell = 1,ncells
     p => cell_list(kcell)
-    p%F = alpha*p%F + (1-alpha)*p%Fprev
-    p%M = alpha*p%M + (1-alpha)*p%Mprev
+    p%F = Falpha*p%F + (1-Falpha)*p%Fprev
+    p%M = Malpha*p%M + (1-Malpha)*p%Mprev
     p%Fprev = p%F
     p%Mprev = p%M
 enddo
-!write(nflog,'(a,2e12.4)') 'fmax, mmax: ',fmax,mmax
-end subroutine
-
-!-----------------------------------------------------------------------------------------
-!    a = a_n(0.8(g+1))^(1 - (2/3)gamma)
-!    b = b_n(0.8(g+1))^(gamma/3) 
-!-----------------------------------------------------------------------------------------
-subroutine CreateCell(kcell,centre,orient,a,g,alpha_n,gamma)
-integer :: kcell
-real(REAL_KIND) :: centre(3),orient(3),a,g,alpha_n,gamma
-type(cell_type), pointer :: p
-
-p => cell_list(kcell)
-p%centre = centre
-p%orient = orient
-p%a = a
-p%g = g
-p%alpha_n = alpha_n
-p%gamma = gamma
-p%a_n = a/(0.8*(g+1))**(1 - (2./3.)*gamma)
-p%b_n = p%a_n/alpha_n
-p%b = p%b_n*(0.8*(g+1))**(gamma/3)
-p%Fprev = 0
-p%Mprev = 0
-allocate(p%nbrlist(32))
-call NormaliseOrient(p)
+write(logmsg,'(a,2e12.4)') 'SumContacts: average F, M: ',fsum/ncells,msum/ncells
+call logger(logmsg)
 end subroutine
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
-subroutine mover
+subroutine Mover
 integer :: k, kcell, i, kpar=0
 integer, allocatable :: permc(:)
-real(REAL_KIND) :: mamp, angle, vm(3), v(3), R
-real(REAL_KIND), parameter :: kF=0.005, kM=0.15
+real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R
 type(cell_type), pointer :: p
-logical, parameter :: jiggle = .true.
-real(REAL_KIND), parameter :: Fjig=0.05, Mjig=0.15
+logical :: Fjiggle, Mjiggle
 
 write(nflog,*) 'mover: ',ncells
+Fjiggle = (Fjigglefactor > 0)
+Mjiggle = (Mjigglefactor > 0)
 allocate(permc(ncells))
-
 do k = 1,ncells
     permc(k) = k
 enddo
@@ -312,24 +357,137 @@ do k = 1,ncells
     kcell = permc(k)
     p => cell_list(kcell)
 !    write(nflog,'(2i6,6e12.4)') k,kcell,p%F,p%M
-	if (jiggle) then
+	if (Fjiggle) then
 		do i = 1,3
 			R = par_rnor(kpar)
-			p%F(i) = p%F(i) + R*Fjig
-			R = par_rnor(kpar)
-			p%M(i) = p%M(i) + R*Mjig
+			p%F(i) = p%F(i) + R*Fjigglefactor
 		enddo
 	endif
-    p%centre = p%centre + DELTA_T*kF*p%F
+	if (Mjiggle) then
+		do i = 1,3
+			R = par_rnor(kpar)
+			p%M(i) = p%M(i) + R*Mjigglefactor
+		enddo
+	endif
+    p%centre = p%centre + (DELTA_T/Fdrag)*p%F
     mamp = sqrt(dot_product(p%M,p%M))
     vm = p%M/mamp     ! unit vector of moment axis
-    angle = DELTA_T*kM*mamp
+    dangle = (DELTA_T/Mdrag)*mamp
 !    write(nflog,'(2e12.4,3f8.4)') mamp,angle,vm
-    call rotate(p%orient,vm,angle,v)
+    call rotate(p%orient,vm,dangle,v)
     p%orient = v
 enddo
 
 deallocate(permc)
+end subroutine
+
+!-----------------------------------------------------------------------------------------
+! This is the simplest form of growth function - linear with time.
+!-----------------------------------------------------------------------------------------
+function GrowthFunction(t,tcycle) result(g)
+real(REAL_KIND) :: t, tcycle, g
+
+g = t/tcycle
+g = min(g,1.0)
+end function
+
+!-----------------------------------------------------------------------------------------
+! We can assume that for a given tissue region/stage there is an idea of a "normal" cell.
+! This is the cell in its resting state.  
+! The "normal" volume Vn = (4/3).Pi.r_n^3 where r_n is the radius of the equivalent sphere.
+! If we assume that a cell divides when its volume = 1.6Vn, we can define a growth parameter
+! g: 0 -> 1 (g is stage of growth) and V/Vn = 0.8(g+1).
+! Note that the "normal" volume Vn is reached when g = 0.25.
+!
+! In the general case, g = g(t) where t = time since birth (not necessarily linear)
+!
+! For an ellipsoid V = (4/3).Pi.a.b^2, Vn = (4/3).Pi.a_n.b_n^2
+! We can define the"normal" aspect ratio aspect_n = a_n/b_n
+! There are two corner cases for cell growth:
+! Case 1: b is constant, b = b_n (beta = 0)
+! Case 2: aspect ratio = a/b is constant: a/b = aspect_n (beta = 1)
+!
+! Case 1.  (a.b^2)/(a_n.b_n^2) = V/Vn = 0.8(g+1)
+!          a = a_n.0.8(g+1)
+!          b = b_n
+! Case 2.  (a.b^2)/(a_n.b_n^2) = 0.8(g+1)
+!          a = aspect_n.b
+!          a^3 = (aspect_n^2.a_n.b_n^2).0.8(g+1) = a_n^3.0.8(g+1)
+!          a = a_n.[0.8(g+1)]^(1/3)
+!          b = b_n.[0.8(g+1)]^(1/3)
+!
+! In the general case, 0 < beta < 1:
+!          a = a_n.[0.8(g+1)]^(1-(2/3)beta)
+!          b = b_n.[0.8(g+1)]^(beta/3)
+! and
+!          a/b = (a_n/b_n).[0.8(g+1)]^(1-beta)
+!
+! Around cell division the shape must be progressively modified to ensure that
+! at the instant of cell division the cell's a and b are such that:
+! with g=1, a1 = the twice the length of a progeny cell at birth, 
+! i.e. (with g=0) = a0 = (a_n/b_n).[0.8]^(1-(2/3)beta), we want a1 = 2.a0.
+! Starting at g = g_c, apply this adjustment to a:
+! a = ((1-g)/(1-g_c)).a + ((g-g_c)/(1-g_c)).2.a0
+! writing alpha = (g-g_c)/(1-g_c)
+! a = (1-alpha).a_n.[0.8(g+1)]^(1-(2/3)beta) + alpha.2.a_n.(0.8)^(1-(2/3)beta)
+!-----------------------------------------------------------------------------------------
+subroutine Grower
+integer :: kcell, ncells0
+real(REAL_KIND) :: a, b, t, g, V, e, alfa, tnow, a0
+type(cell_type), pointer :: p
+
+tnow = istep*DELTA_T
+ncells0 = ncells
+do kcell = 1,ncells0
+	p => cell_list(kcell)
+	t = tnow - p%birthtime
+	g = GrowthFunction(t,p%cycletime)
+	V = p%V_n*0.8*(g+1)
+	e = 1 - (2./3.)*p%beta
+	a = p%a_n*(0.8*(g+1))**e
+	if (g >= 1) then
+		call Divider(kcell)
+		cycle
+	endif
+	if (g > g_threshold) then
+		alfa = (g-g_threshold)/(1-g_threshold)
+		a0 = p%a_n*0.8**e
+		a = (1-alfa)*a + 2*alfa*a0
+	endif
+	b = sqrt(3.*V/(4.*PI*a))
+	p%a = a
+	p%b = b
+enddo
+end subroutine
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
+subroutine Divider(kcell0)
+integer :: kcell0
+integer :: kcell1
+real(REAL_KIND) :: tnow, a, c(3)
+type(cell_type), pointer :: p0, p1
+
+write(nflog,*) 'Divider: ',kcell0
+tnow = istep*DELTA_T
+ncells = ncells + 1
+kcell1 = ncells
+p0 => cell_list(kcell0)
+c = p0%centre
+p0%a = p0%a/2
+p0%birthtime = tnow
+p0%Fprev = 0
+p0%Mprev = 0
+p0%centre = c - p0%a*p0%orient
+cell_list(kcell1) = cell_list(kcell0)
+p1 => cell_list(kcell1)
+p1%centre = c + p0%a*p0%orient
+if (allocated(p1%nbrlist)) then
+	deallocate(p1%nbrlist)
+endif
+allocate(p1%nbrlist(MAX_NBRS))
+call SetNeighbours(kcell0)
+call SetNeighbours(kcell1)
 end subroutine
 
 !--------------------------------------------------------------------------------
@@ -376,10 +534,11 @@ use, intrinsic :: iso_c_binding
 integer(c_int) :: res
 
 istep = istep + 1
-write(logmsg,*) 'simulate_step: ',istep,nsteps
+write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
 call logger(logmsg)
+call Grower
 call SumContacts
-call mover
+call Mover
 res = 0
 
 end subroutine

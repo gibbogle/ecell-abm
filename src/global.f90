@@ -13,19 +13,22 @@ integer, parameter :: TCP_PORT_0 = 5000		! main communication port (logging)
 integer, parameter :: TCP_PORT_1 = 5001		! data transfer port (plotting)
 
 real(REAL_KIND), parameter :: PI = 4*atan(1.0)
+real(REAL_KIND), parameter :: g_threshold = 0.8
 
 type cell_type
 	real(REAL_KIND) :: a, b         ! current axes (um)
-	real(REAL_KIND) :: g            ! current growth level (0 - 1)
-	real(REAL_KIND) :: alpha_n      ! "normal" aspect ratio (at g = 0.25)
+	real(REAL_KIND) :: aspect_n     ! "normal" aspect ratio (at g = 0.25)
 	real(REAL_KIND) :: a_n, b_n     ! "normal" axes
-	real(REAL_KIND) :: gamma        ! b-constancy parameter (0 - 1)
+	real(REAL_KIND) :: V_n          ! "normal" volume
+	real(REAL_KIND) :: beta         ! b-constancy parameter (0 - 1)
 	real(REAL_KIND) :: centre(3)    ! ellipsoid centre position
 	real(REAL_KIND) :: orient(3)    ! ellipsoid main axis unit vector
 	real(REAL_KIND) :: F(3)         ! current total force
 	real(REAL_KIND) :: M(3)         ! current total moment
 	real(REAL_KIND) :: Fprev(3)     ! previous total force
 	real(REAL_KIND) :: Mprev(3)     ! previous total moment
+	real(REAL_KIND) :: birthtime
+	real(REAL_KIND) :: cycletime
 	real(REAL_KIND) :: growthrate
 	integer :: nbrs
 	integer, allocatable :: nbrlist(:)
@@ -36,11 +39,13 @@ type XYZ_type
 end type
 
 integer, parameter :: nflog=10, nfin=11, nfout=12, nfres=13
+integer, parameter :: MAX_CELLS = 10000
+integer, parameter :: MAX_NBRS = 64
 
 character*(128) :: inputfile
 character*(128) :: outputfile
 
-integer :: Mnodes, ncpu_input, ncells, maxcells, nsteps, istep
+integer :: Mnodes, ncpu_input, ncells, nsteps, istep
 integer :: seed(2)
 real(REAL_KIND) :: DELTA_T
 TYPE(winsockport) :: awp_0, awp_1
@@ -48,6 +53,9 @@ logical :: use_TCP = .true.         ! turned off in para_main()
 logical :: use_CPORT1 = .false.
 logical :: stopped, clear_to_send
 logical :: simulation_start, par_zig_init, initialized
+real(REAL_KIND) :: Fdrag, Mdrag
+real(REAL_KIND) :: Falpha, Malpha
+real(REAL_KIND) :: Fjigglefactor, Mjigglefactor
 
 character*(128) :: logfile
 character*(2048) :: logmsg
