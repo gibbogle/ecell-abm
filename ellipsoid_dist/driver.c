@@ -1,5 +1,5 @@
 /* 
-The principal change in Version3.0 is to update the conjugate
+The principal change in Version3.0 is to update the conjugate 
 gradient routine to CG_DESCENT 6.0. Note that the objective 
 structure also contains a pointer to the array of free indices */
 

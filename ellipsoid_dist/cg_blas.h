@@ -10,6 +10,11 @@
    START parameters should be specified to determine when to start
    using the BLAS. */
 
+#ifdef _M_IA64
+    #define __cdecl
+#endif // _M_IA64 
+
+	
 #define NOBLAS
 
 /* if BLAS are used, specify the integer precision */

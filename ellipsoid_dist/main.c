@@ -2,7 +2,7 @@ int main (void)
 {
 	double aval1, bval1, centre1[3], orient1[3];
 	double aval2, bval2, centre2[3], orient2[3];
-	double s1, s2, d;
+	double s1, s2, r1, r2, d;
 
 	aval1 = 5;
 	bval1 = 3;
@@ -22,7 +22,7 @@ int main (void)
 	orient2[2] = 0;
 	s1 = 0.5;
 	s2 = 0.5;
-	min_dist(aval1,bval1,centre1,orient1,aval2,bval2,centre2,orient2,&s1,&s2,&d);
+	min_dist(aval1,bval1,centre1,orient1,aval2,bval2,centre2,orient2,&s1,&s2,&r1,&r2,&d);
 	printf("\ns1, s2: %f %f  d: %f\n",s1,s2,d);
 	return 0;
 }

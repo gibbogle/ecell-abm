@@ -6,6 +6,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef _M_IA64
+    #define __cdecl
+#endif // _M_IA64 
+
+	
 #define PRIVATE static
 #define ZERO ((double) 0)
 #define ONE  ((double) 1)

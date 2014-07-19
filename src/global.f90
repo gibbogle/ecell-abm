@@ -63,6 +63,8 @@ character*(2048) :: logmsg
 
 type(cell_type), allocatable, target :: cell_list(:)
 
+!dec$ attributes dllexport :: nsteps, DELTA_T
+
 contains
 
 !-----------------------------------------------------------------------------------------

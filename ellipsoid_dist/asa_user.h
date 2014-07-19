@@ -4,6 +4,11 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#ifdef _M_IA64
+    #define __cdecl
+#endif // _M_IA64 
+
+	
 #define INT long int
 #define INT_INF LONG_MAX
 #define INF DBL_MAX

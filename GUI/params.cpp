@@ -23,7 +23,7 @@ Params::Params()
 "Length of the simulation.\n\
 [hours]"},
 
-{"DELTA_T", 30.0, 0, 0,
+{"DELTA_T", 60.0, 0, 0,
 "Time step",
 "Length of main time step, for cell death, division, etc.  Should be a divisor of 3600. \n\
 [sec]"},
