@@ -169,7 +169,8 @@ end subroutine
 subroutine PlaceCells
 integer :: ix, iy, iz, kcell, i, kpar=0
 real(REAL_KIND) :: dx, dy, dz, x, y, z, a, b
-real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta, cycletime, age
+real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta
+real(REAL_KIND) :: cycletime, age
 
 if (allocated(cell_list)) then
 	deallocate(cell_list)
@@ -180,7 +181,6 @@ b = 3
 Vn = (4./3.)*PI*a*b**2
 aspect = a/b
 beta = 1.0
-cycletime = 12*60	! 12 hours -> minutes
 dx = 2*b
 dy = dx
 dz = 2*a
@@ -196,6 +196,7 @@ do ix = 1,7
             do i = 1,3
                 orient(i) = orient0(i) + 2.0*(par_uni(kpar) -0.5)
             enddo
+            cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
             age = cycletime*par_uni(kpar)
             kcell = kcell + 1
 !            call CreateCell(kcell,centre,orient,a,g,alpha_n,beta)
@@ -267,34 +268,58 @@ end subroutine
 !-----------------------------------------------------------------------------------------
 subroutine SetNeighbours(kcell)
 integer :: kcell
-integer :: n, jcell, nbrlist(100)
-real(REAL_KIND) :: c0(3), c1(3), r(3), d2, d2lim
+integer :: n, i, jcell, nbrlist(1000)
+real(REAL_KIND) :: c0(3), c1(3), r(3), d2, d2lim, d2list(1000)
+integer, allocatable :: indx(:)
 type(cell_type), pointer :: p
+logical, parameter :: sort = .true.
 
-write(nflog,*) 'SetNeighbours: ',kcell
-!do kcell = 1,ncells
-    p => cell_list(kcell)
-    d2lim = (2.5*p%a)**2
-    c0 = p%centre
-    n = 0
-    do jcell = 1,ncells
-        if (jcell == kcell) cycle
-        c1 = cell_list(jcell)%centre
-        r = c1 - c0
-        d2 = dot_product(r,r)
-        if (d2 < d2lim) then
-			if (n == MAX_NBRS) then
-				write(nflog,*) 'Error: SetNeighbours: n > MAX_NBRS'
-				stop
-			endif
-            n = n+1
-            p%nbrlist(n) = jcell
-        endif
-    enddo
+p => cell_list(kcell)
+d2lim = (2.5*p%a)**2
+c0 = p%centre
+n = 0
+do jcell = 1,ncells
+    if (jcell == kcell) cycle
+    c1 = cell_list(jcell)%centre
+    r = c1 - c0
+    d2 = dot_product(r,r)
+    if (d2 < d2lim) then
+		if (.not.sort .and. n == MAX_NBRS) then
+			write(nflog,*) 'Error: SetNeighbours: n > MAX_NBRS'
+			stop
+		endif
+        n = n+1
+        if (sort) then
+	        nbrlist(n) = jcell
+		    d2list(n) = d2
+		else
+	        p%nbrlist(n) = jcell
+	    endif
+    endif
+enddo
+if (sort) then
+	! Now we need to sort by d2
+	allocate(indx(n))
+	do i = 1,n
+		indx(i) = i
+	enddo
+	call qsort(d2list,n,indx)     ! sorts in increasing order 
+	n = min(n,MAX_NBRS)
+endif
+!write(nflog,*) 'SetNeighbours: ',kcell, n
+p%nbrs = n
+if (sort) then
+	do i = 1,n
+		jcell = indx(i)
+		p%nbrlist(i) = nbrlist(jcell)
+	enddo
+	deallocate(indx)
+endif
+!if (kcell < 20) then
+!	write(nflog,'(20i4)') p%nbrlist(1:n)
+!endif
 !    write(nflog,'(a,i6,a,i2)') 'cell: ',kcell,' nbrs: ',n
 !    write(nflog,'(15i5)') p%nbrlist(1:n)
-    p%nbrs = n
-!enddo
 end subroutine
 
 !-----------------------------------------------------------------------------------------
@@ -464,11 +489,11 @@ end subroutine
 !-----------------------------------------------------------------------------------------
 subroutine Divider(kcell0)
 integer :: kcell0
-integer :: kcell1
+integer :: kcell1, kpar=0
 real(REAL_KIND) :: tnow, a, c(3)
 type(cell_type), pointer :: p0, p1
 
-write(nflog,*) 'Divider: ',kcell0
+!write(nflog,*) 'Divider: ',kcell0
 tnow = istep*DELTA_T
 ncells = ncells + 1
 kcell1 = ncells
@@ -476,12 +501,14 @@ p0 => cell_list(kcell0)
 c = p0%centre
 p0%a = p0%a/2
 p0%birthtime = tnow
+p0%cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
 p0%Fprev = 0
 p0%Mprev = 0
 p0%centre = c - p0%a*p0%orient
 cell_list(kcell1) = cell_list(kcell0)
 p1 => cell_list(kcell1)
 p1%centre = c + p0%a*p0%orient
+p1%cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
 if (allocated(p1%nbrlist)) then
 	deallocate(p1%nbrlist)
 endif

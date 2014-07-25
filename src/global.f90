@@ -41,7 +41,8 @@ end type
 
 integer, parameter :: nflog=10, nfin=11, nfout=12, nfres=13
 integer, parameter :: MAX_CELLS = 10000
-integer, parameter :: MAX_NBRS = 64
+integer, parameter :: MAX_NBRS = 24
+real(REAL_KIND), parameter :: CYCLETIME0 = 12*60	! 12 hours -> minutes
 
 character*(128) :: inputfile
 character*(128) :: outputfile
@@ -280,5 +281,99 @@ write(nflog,'(a,3f8.4)') 'angle:  ',angle
 write(nflog,'(a,3f8.4)') 'yields: ',v
 
 end subroutine
+
+!--------------------------------------------------------------------------------
+!     NON-RECURSIVE STACK VERSION OF QUICKSORT FROM N.WIRTH'S PASCAL
+!     BOOK, 'ALGORITHMS + DATA STRUCTURES = PROGRAMS'.
+!     CHANGES THE ORDER OF THE ASSOCIATED ARRAY T.
+!--------------------------------------------------------------------------------
+SUBROUTINE qsort(a, n, t)
+IMPLICIT NONE
+
+INTEGER, INTENT(IN)    :: n
+REAL(REAL_KIND), INTENT(INOUT)    :: a(n)
+INTEGER, INTENT(INOUT) :: t(n)
+
+!     Local Variables
+
+INTEGER                :: i, j, k, l, r, s, stackl(15), stackr(15), ww
+REAL(REAL_KIND)        :: w, x
+
+s = 1
+stackl(1) = 1
+stackr(1) = n
+
+!     KEEP TAKING THE TOP REQUEST FROM THE STACK UNTIL S = 0.
+
+10 CONTINUE
+l = stackl(s)
+r = stackr(s)
+s = s - 1
+
+!     KEEP SPLITTING A(L), ... , A(R) UNTIL L >= R.
+
+20 CONTINUE
+i = l
+j = r
+k = (l+r) / 2
+x = a(k)
+
+!     REPEAT UNTIL I > J.
+
+DO
+  DO
+    IF (a(i).LT.x) THEN                ! Search from lower end
+      i = i + 1
+      CYCLE
+    ELSE
+      EXIT
+    END IF
+  END DO
+
+  DO
+    IF (x.LT.a(j)) THEN                ! Search from upper end
+      j = j - 1
+      CYCLE
+    ELSE
+      EXIT
+    END IF
+  END DO
+
+  IF (i.LE.j) THEN                     ! Swap positions i & j
+    w = a(i)
+    ww = t(i)
+    a(i) = a(j)
+    t(i) = t(j)
+    a(j) = w
+    t(j) = ww
+    i = i + 1
+    j = j - 1
+    IF (i.GT.j) EXIT
+  ELSE
+    EXIT
+  END IF
+END DO
+
+IF (j-l.GE.r-i) THEN
+  IF (l.LT.j) THEN
+    s = s + 1
+    stackl(s) = l
+    stackr(s) = j
+  END IF
+  l = i
+ELSE
+  IF (i.LT.r) THEN
+    s = s + 1
+    stackl(s) = i
+    stackr(s) = r
+  END IF
+  r = j
+END IF
+
+IF (l.LT.r) GO TO 20
+IF (s.NE.0) GO TO 10
+
+RETURN
+END SUBROUTINE qsort
 
 end module

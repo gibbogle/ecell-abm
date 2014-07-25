@@ -6178,7 +6178,7 @@ void asa_default
 
     /* number of vectors stored in memory (code breaks in the Yk update if
        memory = 1 or 2) */
-    Parm->memory = 11 ;
+    Parm->memory = 11 ;	// 11
 
     /* SubCheck and SubSkip control the frequency with which the subspace
        condition is checked. It it checked for SubCheck*mem iterations and

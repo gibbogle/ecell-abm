@@ -1,8 +1,6 @@
 #ifndef LIBECELL_H
 #define LIBECELL_H
 
-#define DllExport __declspec( dllexport )
-
 #ifdef __cplusplus
 extern "C" {
 #endif
