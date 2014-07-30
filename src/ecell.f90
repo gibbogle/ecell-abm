@@ -171,7 +171,11 @@ integer :: ix, iy, iz, kcell, i, kpar=0
 real(REAL_KIND) :: dx, dy, dz, x, y, z, a, b
 real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta
 real(REAL_KIND) :: cycletime, age
+integer :: nx, ny, nz
 
+nx = 5
+ny = 5
+nz = 5
 if (allocated(cell_list)) then
 	deallocate(cell_list)
 endif
@@ -183,18 +187,18 @@ aspect = a/b
 beta = 1.0
 dx = 2*b
 dy = dx
-dz = 2*a
+dz = 3*a
 orient0 = (/ 0., 0., 1. /)
 kcell = 0
-do ix = 1,7
-    do iy = 1,7
-        do iz = 1,7
+do ix = 1,nx
+    do iy = 1,ny
+        do iz = 1,nz
             x = ix*dx
             y = iy*dy
             z = iz*dz
             centre = (/ x, y, z /)
             do i = 1,3
-                orient(i) = orient0(i) + 2.0*(par_uni(kpar) -0.5)
+                orient(i) = orient0(i) + 0.5*(par_uni(kpar) -0.5)
             enddo
             cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
             age = cycletime*par_uni(kpar)
@@ -239,29 +243,7 @@ p%Fprev = 0
 p%Mprev = 0
 allocate(p%nbrlist(MAX_NBRS))
 call NormaliseOrient(p)
-write(nflog,'(a,i6,2f8.2)') 'a, b: ',kcell,p%a,p%b
-end subroutine
-
-!-----------------------------------------------------------------------------------------
-subroutine CreateCell1(kcell,centre,orient,a,g,alpha_n,beta)
-integer :: kcell
-real(REAL_KIND) :: centre(3),orient(3),a,g,alpha_n,beta
-type(cell_type), pointer :: p
-
-p => cell_list(kcell)
-p%centre = centre
-p%orient = orient
-p%a = a
-p%aspect_n = alpha_n
-p%beta = beta
-p%a_n = a/(0.8*(g+1))**(1 - (2./3.)*beta)
-p%b_n = p%a_n/alpha_n
-p%V_n = (4./3.)*PI*p%a*p%b**2
-p%b = p%b_n*(0.8*(g+1))**(beta/3)
-p%Fprev = 0
-p%Mprev = 0
-allocate(p%nbrlist(MAX_NBRS))
-call NormaliseOrient(p)
+if (dbug) write(nflog,'(a,i6,2f8.2)') 'a, b: ',kcell,p%a,p%b
 end subroutine
 
 !-----------------------------------------------------------------------------------------
@@ -341,10 +323,12 @@ do kcell = 1,ncells
     p => cell_list(kcell)
     do k = 1,p%nbrs
         jcell = p%nbrlist(k)
+	    if (dbug) write(nflog,*) 'Cell: ',kcell,' nbr: ',p%nbrs,k,jcell
         p1 => cell_list(jcell)
         call CellInteraction(p,p1)
     enddo
     famp = sqrt(dot_product(p%F,p%F))
+    if (dbug) write(nflog,*) 'famp: ',famp
     fsum = fsum + famp
     mamp = sqrt(dot_product(p%M,p%M))
     msum = msum + mamp
@@ -356,8 +340,8 @@ do kcell = 1,ncells
     p%Fprev = p%F
     p%Mprev = p%M
 enddo
-write(logmsg,'(a,2e12.4)') 'SumContacts: average F, M: ',fsum/ncells,msum/ncells
-call logger(logmsg)
+!write(logmsg,'(a,2e12.4)') 'SumContacts: average F, M: ',fsum/ncells,msum/ncells
+!call logger(logmsg)
 end subroutine
 
 !-----------------------------------------------------------------------------------------
@@ -365,11 +349,11 @@ end subroutine
 subroutine Mover
 integer :: k, kcell, i, kpar=0
 integer, allocatable :: permc(:)
-real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R
+real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R, del(3)
 type(cell_type), pointer :: p
 logical :: Fjiggle, Mjiggle
 
-write(nflog,*) 'mover: ',ncells
+!write(nflog,*) 'mover: ',ncells
 Fjiggle = (Fjigglefactor > 0)
 Mjiggle = (Mjigglefactor > 0)
 allocate(permc(ncells))
@@ -394,7 +378,9 @@ do k = 1,ncells
 			p%M(i) = p%M(i) + R*Mjigglefactor
 		enddo
 	endif
-    p%centre = p%centre + (DELTA_T/Fdrag)*p%F
+	del = (DELTA_T/Fdrag)*p%F
+    p%centre = p%centre + del
+    if (dbug) write(nflog,'(i6,i3,6f8.4)') istep,k,del,p%centre
     mamp = sqrt(dot_product(p%M,p%M))
     vm = p%M/mamp     ! unit vector of moment axis
     dangle = (DELTA_T/Mdrag)*mamp
@@ -549,8 +535,8 @@ do kcell = 1,nEC_list
                           -b*vz, -b*(1-c)*vy*vz/s2, b*(c+(1-c)*vy*vy/s2) /)
     cmax = max(cmax,c)
 enddo
-write(logmsg,*) 'get_scene: ',istep,cmax
-call logger(logmsg)
+!write(logmsg,*) 'get_scene: ',istep,cmax
+!call logger(logmsg)
 end subroutine
 
 !-----------------------------------------------------------------------------------------
@@ -561,8 +547,10 @@ use, intrinsic :: iso_c_binding
 integer(c_int) :: res
 
 istep = istep + 1
-write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
-call logger(logmsg)
+if (mod(istep,1) == 0) then
+	write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
+	call logger(logmsg)
+endif
 call Grower
 call SumContacts
 call Mover

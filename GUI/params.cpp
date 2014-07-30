@@ -44,12 +44,12 @@ Params::Params()
  "Animation interval (timesteps)",
  "Interval between animation screen updates (timesteps)."},
 
-{"F_DRAG", 200, 0, 0,
+{"F_DRAG", 100, 0, 0,
 "Drag factor",
 "Velocity v = F/Fdrag, angular velocity w = M/Mdrag\n\
     F = total force vector, M = total moment vector, Fdrag = force drag coefficient, Mdrag = moment drag coefficient."},
 
-{"M_DRAG", 20, 0, 0,
+{"M_DRAG", 10, 0, 0,
 "Moment drag factor",
 "Moment drag factor."},
 

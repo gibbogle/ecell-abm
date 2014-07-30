@@ -133,16 +133,28 @@ end subroutine
 ! an equal repulsive force occurs at approximately delta = -2
 ! (See ellipsoid_forces.xlsx)
 !----------------------------------------------------------------------------------------
-subroutine CellContactForce(delta, F)
-real(REAL_KIND) :: delta, F
+subroutine CellContactForce(delta, s1, s2, F)
+real(REAL_KIND) :: delta, s1, s2, F
 real(REAL_KIND), parameter :: a = 3, b = 2, c = 10, e = 3.0
 real(REAL_KIND), parameter :: g = e/2.5
-real(REAL_KIND) :: d
+real(REAL_KIND) :: d, t1, t2, tsum, afactor
 
 if (delta > 2*e) then
     F = 0
 elseif (delta > 0) then
-    F = exp(-((delta-e)/g)**2)      ! attraction
+	afactor = 1
+	if (POLARITY) then
+		t1 = abs(s1-0.5)
+		t2 = abs(s2-0.5)
+		tsum = t1 + t2
+		if (tsum < 0.5) then
+			afactor = 2*(1 + cos(tsum*PI))
+		else
+			tsum = 1 - tsum
+			afactor = 2*(1 + cos(tsum*PI))
+		endif
+	endif
+    F = afactor*exp(-((delta-e)/g)**2)      ! attraction
 else
     d = delta
     if (d < -a*0.99) d = -a*0.99
@@ -241,18 +253,19 @@ if (incontact) then
     v = (ell2%centre + p2) - (ell1%centre + p1)
     vamp = sqrt(dot_product(v,v))
     v = v/vamp        ! unit vector in direction P1 -> P2
-	call CellContactForce(delta, famp)  ! Note: famp > 0 ==> attraction
+	call CellContactForce(delta, s1, s2, famp)  ! Note: famp > 0 ==> attraction
 	famp = max(famp,-Flimit)
     F = famp*v          ! force in the direction of v, i.e. from P1 to P2
+	if (dbug) write(nflog,'(a,6f8.4)') 's1,s2,delta,F: ',s1,s2,delta,F
 	ell1%F = ell1%F + F
-	ell2%F = ell2%F - F
+!	ell2%F = ell2%F - F		! for now, apply force to the current cell only
 	! M1 = r1 x F, M2 = r2 x F      ! signs???
 	r1 = p1 + rad1*v    ! vector offset of contact point from ellipsoid centre
-	r2 = p2 - rad2*v
+!	r2 = p2 - rad2*v
 	call cross_product(r1,F,M1)
-	call cross_product(r2,-F,M2)
+!	call cross_product(r2,-F,M2)
 	ell1%M = ell1%M + M1
-	ell2%M = ell2%M + M2
+!	ell2%M = ell2%M + M2
 endif
 end subroutine
 

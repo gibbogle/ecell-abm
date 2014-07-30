@@ -43,6 +43,7 @@ integer, parameter :: nflog=10, nfin=11, nfout=12, nfres=13
 integer, parameter :: MAX_CELLS = 10000
 integer, parameter :: MAX_NBRS = 24
 real(REAL_KIND), parameter :: CYCLETIME0 = 12*60	! 12 hours -> minutes
+logical, parameter :: POLARITY = .false.
 
 character*(128) :: inputfile
 character*(128) :: outputfile
@@ -63,6 +64,8 @@ character*(128) :: logfile
 character*(2048) :: logmsg
 
 type(cell_type), allocatable, target :: cell_list(:)
+
+logical :: dbug = .false.
 
 !dec$ attributes dllexport :: nsteps, DELTA_T
 
