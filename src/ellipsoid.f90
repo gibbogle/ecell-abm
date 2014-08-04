@@ -232,7 +232,7 @@ end subroutine
 
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
-subroutine CellInteraction(ell1, ell2)
+subroutine CellInteraction1(ell1, ell2)
 type(cell_type) :: ell1, ell2
 real(REAL_KIND) :: s1, s2
 real(REAL_KIND) :: delta
@@ -269,6 +269,48 @@ if (incontact) then
 endif
 end subroutine
 
+!----------------------------------------------------------------------------------------
+!----------------------------------------------------------------------------------------
+subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,F,M1,M2)
+!type(cell_type) :: ell1, ell2
+real(REAL_KIND) :: a1, b1, centre1(3), orient1(3)
+real(REAL_KIND) :: a2, b2, centre2(3), orient2(3)
+real(REAL_KIND) :: F(3), M1(3), M2(3)
+real(REAL_KIND) :: s1, s2
+real(REAL_KIND) :: delta
+logical :: incontact
+real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2
+real(REAL_KIND) :: r1(3), r2(3)	    ! Displacement of contact points on cell1 and cell2 relative to centres
+real(REAL_KIND) :: rad1, rad2, vamp, v(3), famp
+
+!write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
+
+!call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta)
+call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,rad1,rad2,delta)
+! delta is the cell separation at the "closest" points
+incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
+if (incontact) then
+!    write(nflog,'(a,5f6.2)') 's1, s2, rad1, rad2, delta: ',s1,s2,rad1,rad2,delta
+    p1 = (2*s1-1)*a1*orient1    ! vector offset of sphere centre from ellipsoid centre
+    p2 = (2*s2-1)*a2*orient2
+    v = (centre2 + p2) - (centre1 + p1)
+    vamp = sqrt(dot_product(v,v))
+    v = v/vamp        ! unit vector in direction P1 -> P2
+	call CellContactForce(delta, s1, s2, famp)  ! Note: famp > 0 ==> attraction
+	famp = max(famp,-Flimit)
+    F = famp*v          ! force in the direction of v, i.e. from P1 to P2
+	if (dbug) write(nflog,'(a,6f8.4)') 's1,s2,delta,F: ',s1,s2,delta,F
+!	ell1%F = ell1%F + F
+!	ell2%F = ell2%F - F		! for now, apply force to the current cell only
+	! M1 = r1 x F, M2 = r2 x F      ! signs???
+	r1 = p1 + rad1*v    ! vector offset of contact point from ellipsoid centre
+	r2 = p2 - rad2*v
+	call cross_product(r1,F,M1)
+	call cross_product(r2,-F,M2)
+!	ell1%M = ell1%M + M1
+!	ell2%M = ell2%M + M2
+endif
+end subroutine
 
 end module
 

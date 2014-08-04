@@ -2,6 +2,7 @@
 module ecell
 
 use ellipsoid
+use solve
 
 implicit none
 
@@ -309,6 +310,7 @@ end subroutine
 subroutine SumContacts
 integer :: kcell, k, jcell
 real(REAL_KIND) :: delta, s1, s2, famp, mamp, fsum, msum
+real(REAL_KIND) :: F(3), M1(3), M2(3)
 logical :: incontact
 type(cell_type), pointer :: p, p1
 
@@ -321,11 +323,16 @@ fsum = 0
 msum = 0
 do kcell = 1,ncells
     p => cell_list(kcell)
+    p%F = 0
+    p%M = 0
     do k = 1,p%nbrs
         jcell = p%nbrlist(k)
 	    if (dbug) write(nflog,*) 'Cell: ',kcell,' nbr: ',p%nbrs,k,jcell
         p1 => cell_list(jcell)
-        call CellInteraction(p,p1)
+!        call CellInteraction(p,p1)
+        call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,F,M1,M2)
+	    p%F = p%F + F
+	    p%M = p%M + M1
     enddo
     famp = sqrt(dot_product(p%F,p%F))
     if (dbug) write(nflog,*) 'famp: ',famp
@@ -545,6 +552,8 @@ subroutine simulate_step(res) BIND(C)
 !DEC$ ATTRIBUTES DLLEXPORT :: simulate_step  
 use, intrinsic :: iso_c_binding
 integer(c_int) :: res
+integer :: nt=10
+real(REAL_KIND) :: dt
 
 istep = istep + 1
 if (mod(istep,1) == 0) then
@@ -552,8 +561,10 @@ if (mod(istep,1) == 0) then
 	call logger(logmsg)
 endif
 call Grower
-call SumContacts
-call Mover
+!call SumContacts
+!call Mover
+dt = DELTA_T/nt
+call solver(dt,nt)
 res = 0
 
 end subroutine
