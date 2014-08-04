@@ -39,11 +39,13 @@ double myvalgrad
 // =>
 //     (1/2).b^2/a^2 <= s <= 1 - (1/2).b^2/a^2
 
-int __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1, double*orient1, 
+void __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1, double*orient1, 
 	double aval2, double bval2, double *centre2, double*orient2, 
-	double *s1, double *s2, double *rad1, double *rad2, double *d)
+	double *s1, double *s2, double *rad1, double *rad2, double *d, int *res)
 {
 	double x[2], lo[2], hi[2];
+	double work[1000];
+	int iwork[1000];
 	INT n;
 	int i;
 	asa_stat Stat; // structure with statistics (can be NULL) 
@@ -72,14 +74,15 @@ int __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1, 
 		if (x[i] < lo[i]) x[i] = lo[i];
 		if (x[i] > hi[i]) x[i] = hi[i];
 	}
-	asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, NULL, NULL) ;
+	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, NULL, NULL) ;
+//	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, work, iwork) ;
 	*s1 = x[0];
 	*s2 = x[1];
 	*rad1 = r1;
 	*rad2 = r2;
 	*d = Stat.f;
 	if (!QUIET) printf("bounds: lo: %f hi: %f\n",lo[0],hi[0]);
-	return 0;
+	return;
 }
 
 double myvalue // evaluate the objective function 

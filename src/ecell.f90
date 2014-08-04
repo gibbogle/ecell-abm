@@ -173,10 +173,11 @@ real(REAL_KIND) :: dx, dy, dz, x, y, z, a, b
 real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta
 real(REAL_KIND) :: cycletime, age
 integer :: nx, ny, nz
+type(cell_type), pointer :: p
 
-nx = 5
-ny = 5
-nz = 5
+nx = 3
+ny = 3
+nz = 3
 if (allocated(cell_list)) then
 	deallocate(cell_list)
 endif
@@ -202,7 +203,7 @@ do ix = 1,nx
                 orient(i) = orient0(i) + 0.5*(par_uni(kpar) -0.5)
             enddo
             cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
-            age = cycletime*par_uni(kpar)
+            age = 0.8*cycletime*par_uni(kpar)
             kcell = kcell + 1
 !            call CreateCell(kcell,centre,orient,a,g,alpha_n,beta)
 			call CreateCell(kcell,centre,orient,Vn,aspect,beta,cycletime,age)
@@ -210,6 +211,13 @@ do ix = 1,nx
     enddo
 enddo
 ncells = kcell
+!do kcell = 1,ncells
+!	p =>cell_list(kcell)
+!	if (p%a < p%b) then
+!		write(*,*) 'Error: PlaceCells: a < b: cell: ',kcell,p%a,p%b
+!		stop
+!	endif
+!enddo
 end subroutine
 
 !-----------------------------------------------------------------------------------------
@@ -240,6 +248,10 @@ p%b_n = (3*Vn/(4*PI*aspect))**(1./3.)
 p%a_n = aspect*p%b_n
 p%a = p%a_n*(0.8*(g+1))**(1-2*beta/3)
 p%b = p%b_n*(0.8*(g+1))**(beta/3)
+!if (p%a < p%b) then
+!	write(*,*) 'Error: CreateCell: a < b: cell: ',kcell,p%a,p%b
+!	stop
+!endif
 p%Fprev = 0
 p%Mprev = 0
 allocate(p%nbrlist(MAX_NBRS))
@@ -475,6 +487,10 @@ do kcell = 1,ncells0
 	b = sqrt(3.*V/(4.*PI*a))
 	p%a = a
 	p%b = b
+!	if (p%a < p%b) then
+!		write(*,*) 'Error: Grower: a < b: cell: ',kcell,p%a,p%b
+!		stop
+!	endif
 enddo
 end subroutine
 
@@ -493,6 +509,12 @@ kcell1 = ncells
 p0 => cell_list(kcell0)
 c = p0%centre
 p0%a = p0%a/2
+if (p0%a < p0%b) then
+	write(*,*) 'Error: Divider: a < b: cell: ',kcell1,p0%a,p0%b
+	write(*,*) 'aspect_n, a_n, b_n, beta: ',p0%aspect_n, p0%a_n, p0%b_n, p0%beta
+	stop
+endif
+
 p0%birthtime = tnow
 p0%cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
 p0%Fprev = 0
@@ -554,6 +576,8 @@ use, intrinsic :: iso_c_binding
 integer(c_int) :: res
 integer :: nt=10
 real(REAL_KIND) :: dt
+integer :: kcell
+type(cell_type), pointer :: p
 
 istep = istep + 1
 if (mod(istep,1) == 0) then
@@ -561,10 +585,17 @@ if (mod(istep,1) == 0) then
 	call logger(logmsg)
 endif
 call Grower
-!call SumContacts
-!call Mover
-dt = DELTA_T/nt
-call solver(dt,nt)
+call SumContacts
+call Mover
+!do kcell = 1,ncells
+!    p =>cell_list(kcell)
+!	if (p%a < p%b) then
+!		write(*,*) 'Error: simulate_step: a < b: cell: ',kcell,p%a,p%b
+!		stop
+!	endif
+!enddo
+!dt = DELTA_T/nt
+!call solver(dt,nt)
 res = 0
 
 end subroutine

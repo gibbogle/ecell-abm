@@ -43,7 +43,7 @@ do i = 1, cnt
         stop
     end if
     if (i == 1) then
-!        read(c(1:len),'(i)') ncpu
+!        read(c(1:len),'(i)') ncpu 
         read(c(1:nlen),*) ncpu															! --> ncpu
         write(*,*) 'Requested threads: ',ncpu
     elseif (i == 2) then
@@ -66,9 +66,9 @@ end do
 	write(*,*) 'did execute: nsteps, DELTA_T: ',nsteps, DELTA_T
 !	nsumm_interval = (60*60)/DELTA_T   ! number of time steps per hour
 !	write(*,*) 'nsumm_interval: ',nsumm_interval
-!	do jstep = 1,Nsteps
-!!		write(*,*) 'jstep: ',jstep
-!		call simulate_step(res)
+	do jstep = 1,Nsteps
+		write(*,*) 'jstep: ',jstep
+		call simulate_step(res)
 !		if (mod(jstep,nsumm_interval) == 0) then
 !			call get_summary(summarydata,i_hypoxia_cutoff,i_growth_cutoff)
 !		endif
@@ -76,7 +76,7 @@ end do
 !			write(*,*) 'Error exit: ',res
 !			stop
 !		endif
-!	enddo
+	enddo
 !	call terminate_run(res)
 !	!call cpu_time(t2)
 !	t2 = wtime()

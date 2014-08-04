@@ -240,10 +240,11 @@ logical :: incontact
 real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of ell1 and ell2
 real(REAL_KIND) :: r1(3), r2(3)	    ! Displacement of contact points on ell1 and ell2 relative to centres
 real(REAL_KIND) :: rad1, rad2, vamp, v(3), famp, F(3), M1(3), M2(3)
+integer :: res
 
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
 
-call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta)
+call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta,res)
 ! delta is the cell separation at the "closest" points
 incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
 if (incontact) then
@@ -255,7 +256,7 @@ if (incontact) then
     v = v/vamp        ! unit vector in direction P1 -> P2
 	call CellContactForce(delta, s1, s2, famp)  ! Note: famp > 0 ==> attraction
 	famp = max(famp,-Flimit)
-    F = famp*v          ! force in the direction of v, i.e. from P1 to P2
+    F = famp*v          ! force in the direction of v, i.e. from P1 to P2 
 	if (dbug) write(nflog,'(a,6f8.4)') 's1,s2,delta,F: ',s1,s2,delta,F
 	ell1%F = ell1%F + F
 !	ell2%F = ell2%F - F		! for now, apply force to the current cell only
@@ -279,14 +280,21 @@ real(REAL_KIND) :: F(3), M1(3), M2(3)
 real(REAL_KIND) :: s1, s2
 real(REAL_KIND) :: delta
 logical :: incontact
-real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2
+real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2 
 real(REAL_KIND) :: r1(3), r2(3)	    ! Displacement of contact points on cell1 and cell2 relative to centres
 real(REAL_KIND) :: rad1, rad2, vamp, v(3), famp
+integer :: res
 
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
 
 !call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta)
-call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,rad1,rad2,delta)
+call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,rad1,rad2,delta,res)
+if (res /= 0) then
+	write(*,*) 'Error: CellInteraction: res: ',res
+	write(*,'(a,8f8.3)') 'Cell 1: ',a1,b1,centre1,orient1
+	write(*,'(a,8f8.3)') 'Cell 2: ',a2,b2,centre2,orient2
+	stop
+endif
 ! delta is the cell separation at the "closest" points
 incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
 if (incontact) then
