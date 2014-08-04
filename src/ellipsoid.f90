@@ -135,7 +135,7 @@ end subroutine
 !----------------------------------------------------------------------------------------
 subroutine CellContactForce(delta, s1, s2, F)
 real(REAL_KIND) :: delta, s1, s2, F
-real(REAL_KIND), parameter :: a = 3, b = 2, c = 10, e = 3.0
+real(REAL_KIND), parameter :: a = 2, b = 2, c = 10, e = 3.0
 real(REAL_KIND), parameter :: g = e/2.5
 real(REAL_KIND) :: d, t1, t2, tsum, afactor
 
@@ -272,11 +272,12 @@ end subroutine
 
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
-subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,F,M1,M2)
+subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,F,M1,M2,ok)
 !type(cell_type) :: ell1, ell2
 real(REAL_KIND) :: a1, b1, centre1(3), orient1(3)
 real(REAL_KIND) :: a2, b2, centre2(3), orient2(3)
 real(REAL_KIND) :: F(3), M1(3), M2(3)
+logical :: ok
 real(REAL_KIND) :: s1, s2
 real(REAL_KIND) :: delta
 logical :: incontact
@@ -293,7 +294,8 @@ if (res /= 0) then
 	write(*,*) 'Error: CellInteraction: res: ',res
 	write(*,'(a,8f8.3)') 'Cell 1: ',a1,b1,centre1,orient1
 	write(*,'(a,8f8.3)') 'Cell 2: ',a2,b2,centre2,orient2
-	stop
+	ok = .false.
+	return
 endif
 ! delta is the cell separation at the "closest" points
 incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
@@ -318,6 +320,7 @@ if (incontact) then
 !	ell1%M = ell1%M + M1
 !	ell2%M = ell2%M + M2
 endif
+ok = .true.
 end subroutine
 
 end module

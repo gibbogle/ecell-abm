@@ -69,6 +69,7 @@ end do
 	do jstep = 1,Nsteps
 		write(*,*) 'jstep: ',jstep
 		call simulate_step(res)
+		if (res /= 0) stop
 !		if (mod(jstep,nsumm_interval) == 0) then
 !			call get_summary(summarydata,i_hypoxia_cutoff,i_growth_cutoff)
 !		endif

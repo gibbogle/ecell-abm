@@ -24,6 +24,7 @@ contains
 !------------------------------------------------------------------------------------------
 subroutine fderiv(t,x,xp)
 real(REAL_KIND) :: t, x(*), xp(*)
+logical :: ok
 integer :: i1, i2, j, k1, k2, kpar=0
 real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3) 
 real(REAL_KIND) :: FF(3), MM1(3), MM2(3), Fsum(3), Msum(3), R, mamp, vm(3), dangle 
@@ -49,7 +50,11 @@ do i1 = 1,ncells
         centre2 = x(k2+1:k2+3)
 !        orient2 = x(k2+4:k2+6)
 		orient2 = p2%orient
-        call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,FF,MM1,MM2)
+        call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,FF,MM1,MM2,ok)
+        if (.not.ok) then
+            write(*,*) 'istep, i1, i2: ',istep,i1,i2
+            return
+        endif
         F(i1,i2,:) = FF
         F(i2,i1,:) = -F(i1,i2,:) + (/1.0e-10,0.0,0.0/)
 !        M(i1,i2,:) = MM1
@@ -87,13 +92,15 @@ do i1 = 1,ncells
 enddo
 !write(*,*) 'xp:'
 !write(*,'(3f7.3,4x,3f7.3)') xp(1:6*ncells)
+ok = .true.
 end subroutine
 
 !------------------------------------------------------------------------------------------
 !------------------------------------------------------------------------------------------
-subroutine solver(dt, nt)
+subroutine solver(dt, nt,ok)
 real(REAL_KIND) :: dt
 integer :: nt
+logical :: ok
 integer :: kcell, k, j, nvars, flag, res
 type(cell_type), pointer :: p
 real(REAL_KIND), allocatable :: x(:)        ! the cell position and orientation variables
@@ -157,6 +164,12 @@ do j = 1,nt
 	if (flag /= 2) then
 		write(logmsg,*) 'Bad flag: ',flag
 		call logger(logmsg)
+        deallocate(x)
+        deallocate(xp)
+        deallocate(F)
+        !deallocate(M)
+		ok = .false.
+		return
 	endif
 	flag = 2
 enddo
@@ -169,10 +182,10 @@ do kcell = 1,ncells
 !    p%orient = p%orient/amp
 enddo
 deallocate(x)
-!deallocate(xp)
+deallocate(xp)
 deallocate(F)
 !deallocate(M)
-
+ok = .true.
 end subroutine
 
 end module
