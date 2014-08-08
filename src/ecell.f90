@@ -85,15 +85,16 @@ end subroutine
 subroutine ReadCellParams(ok)
 logical :: ok
 real(REAL_KIND) :: t_div_median, t_div_shape, hours, deltat
-integer :: nc0, nt_anim
+integer :: nb0, nt_anim
 character*(256) :: cellmlfile
 
 open(nfin,file=inputfile)
-read(nfin,*) nc0
+read(nfin,*) nb0
 read(nfin,*) t_div_median
 read(nfin,*) t_div_shape
 read(nfin,*) hours
 read(nfin,*) deltat
+read(nfin,*) isolver
 read(nfin,*) seed(1)
 read(nfin,*) seed(2)
 read(nfin,*) ncpu_input
@@ -107,6 +108,9 @@ read(nfin,*) Mjigglefactor
 read(nfin,*) cellmlfile
 close(nfin)
 
+NX = nb0
+NY = nb0
+NZ = nb0
 DELTA_T = deltat/60 ! sec -> min
 nsteps = hours*60./DELTA_T
 write(logmsg,*) 'hours,DELTA_T, nsteps: ',hours,DELTA_T,nsteps
@@ -172,16 +176,16 @@ integer :: ix, iy, iz, kcell, i, kpar=0
 real(REAL_KIND) :: dx, dy, dz, x, y, z, a, b
 real(REAL_KIND) :: centre(3), orient(3), orient0(3), Vn, aspect, beta
 real(REAL_KIND) :: cycletime, age
-integer :: nx, ny, nz
 type(cell_type), pointer :: p
 
-nx = 3
-ny = 3
-nz = 3
 if (allocated(cell_list)) then
 	deallocate(cell_list)
+	deallocate(s1s2)
 endif
 allocate(cell_list(MAX_CELLS))
+allocate(s1s2(MAX_CELLS,MAX_CELLS,2))
+s1s2 = 0.5
+
 a = 5
 b = 3
 Vn = (4./3.)*PI*a*b**2
@@ -189,7 +193,7 @@ aspect = a/b
 beta = 1.0
 dx = 2*b
 dy = dx
-dz = 3*a
+dz = 2.5*a
 orient0 = (/ 0., 0., 1. /)
 kcell = 0
 do ix = 1,nx
@@ -200,7 +204,7 @@ do ix = 1,nx
             z = iz*dz
             centre = (/ x, y, z /)
             do i = 1,3
-                orient(i) = orient0(i) + 0.5*(par_uni(kpar) -0.5)
+                orient(i) = orient0(i) + 0.05*(par_uni(kpar) -0.5)
             enddo
             cycletime = CYCLETIME0*(1 + 0.2*(par_uni(kpar)-0.5))
             age = 0.8*cycletime*par_uni(kpar)
@@ -317,9 +321,15 @@ endif
 !    write(nflog,'(15i5)') p%nbrlist(1:n)
 end subroutine
 
+logical function nancomponent(v)
+real(REAL_KIND) :: v(3)
+
+nancomponent =  (isnan(v(1)) .or. isnan(v(2)) .or. isnan(v(3)))
+end function
+
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
-subroutine SumContacts
+subroutine SumContacts(ok)
 integer :: kcell, k, jcell
 real(REAL_KIND) :: delta, s1, s2, famp, mamp, fsum, msum
 real(REAL_KIND) :: F(3), M1(3), M2(3)
@@ -341,10 +351,46 @@ do kcell = 1,ncells
         jcell = p%nbrlist(k)
 	    if (dbug) write(nflog,*) 'Cell: ',kcell,' nbr: ',p%nbrs,k,jcell
         p1 => cell_list(jcell)
-!        call CellInteraction(p,p1)
-        call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,F,M1,M2,ok)
+        if (nancomponent(p%centre)) then
+			write(*,*) 'Bad p%centre: ',kcell,p%centre
+			ok = .false.
+			return
+		endif
+        if (nancomponent(p%orient)) then
+			write(*,*) 'Bad p%orient: ',kcell,p%orient
+			ok = .false.
+			return
+		endif
+        if (nancomponent(p1%centre)) then
+			write(*,*) 'Bad p1%centre: ',kcell,p1%centre
+			ok = .false.
+			return
+		endif
+        if (nancomponent(p1%orient)) then
+			write(*,*) 'Bad p1%orient: ',kcell,p1%orient
+			ok = .false.
+			return
+		endif
+		s1 = 0.5	! initial guesses
+		s2 = 0.5
+		s1 = s1s2(kcell,jcell,1)
+		s2 = s1s2(kcell,jcell,2)
+        call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,s1,s2,F,M1,M2,ok)
+        if (.not.ok) return
+		s1s2(kcell,jcell,1) = s1
+		s1s2(kcell,jcell,2) = s2
+		s1s2(jcell,kcell,1) = s1
+		s1s2(jcell,kcell,2) = s2
 	    p%F = p%F + F
 	    p%M = p%M + M1
+	    if (nancomponent(F)) then
+			write(*,'(a,2i6,3f8.4)') 'Bad F: ',kcell,k,F
+			stop
+		endif
+	    if (nancomponent(M1)) then
+			write(*,'(a,2i6,3f8.4)') 'Bad M1: ',kcell,k,M1
+			stop
+		endif
     enddo
     famp = sqrt(dot_product(p%F,p%F))
     if (dbug) write(nflog,*) 'famp: ',famp
@@ -354,8 +400,8 @@ do kcell = 1,ncells
 enddo
 do kcell = 1,ncells
     p => cell_list(kcell)
-    p%F = Falpha*p%F + (1-Falpha)*p%Fprev
-    p%M = Malpha*p%M + (1-Malpha)*p%Mprev
+    p%F = (1-Falpha)*p%F + Falpha*p%Fprev
+    p%M = (1-Malpha)*p%M + Malpha*p%Mprev
     p%Fprev = p%F
     p%Mprev = p%M
 enddo
@@ -365,7 +411,8 @@ end subroutine
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
-subroutine Mover
+subroutine Mover(dt)
+real(REAL_KIND) :: dt
 integer :: k, kcell, i, kpar=0
 integer, allocatable :: permc(:)
 real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R, del(3)
@@ -397,14 +444,22 @@ do k = 1,ncells
 			p%M(i) = p%M(i) + R*Mjigglefactor
 		enddo
 	endif
-	del = (DELTA_T/Fdrag)*p%F
+	del = (dt/Fdrag)*p%F
     p%centre = p%centre + del
     if (dbug) write(nflog,'(i6,i3,6f8.4)') istep,k,del,p%centre
     mamp = sqrt(dot_product(p%M,p%M))
+    if (mamp == 0) cycle
     vm = p%M/mamp     ! unit vector of moment axis
-    dangle = (DELTA_T/Mdrag)*mamp
+    dangle = (dt/Mdrag)*mamp
 !    write(nflog,'(2e12.4,3f8.4)') mamp,angle,vm
     call rotate(p%orient,vm,dangle,v)
+    if (nancomponent(v)) then
+		write(*,'(a,i6,3f8.4)') 'Bad rotation: ',k,p%orient
+		write(*,'(a,3f8.3)') 'p%M: ',p%M
+		write(*,'(a,5f8.3)') 'mamp,vm,dangle: ',mamp,vm,dangle
+		write(*,'(a,3f8.4)') 'to: ',v
+		stop
+	endif
     p%orient = v
 enddo
 
@@ -461,7 +516,8 @@ end function
 ! writing alpha = (g-g_c)/(1-g_c)
 ! a = (1-alpha).a_n.[0.8(g+1)]^(1-(2/3)beta) + alpha.2.a_n.(0.8)^(1-(2/3)beta)
 !-----------------------------------------------------------------------------------------
-subroutine Grower
+subroutine Grower(ok)
+logical :: ok
 integer :: kcell, ncells0
 real(REAL_KIND) :: a, b, t, g, V, e, alfa, tnow, a0
 type(cell_type), pointer :: p
@@ -476,7 +532,8 @@ do kcell = 1,ncells0
 	e = 1 - (2./3.)*p%beta
 	a = p%a_n*(0.8*(g+1))**e
 	if (g >= 1) then
-		call Divider(kcell)
+		call Divider(kcell,ok)
+		if (.not.ok) return
 		cycle
 	endif
 	if (g > g_threshold) then
@@ -492,11 +549,13 @@ do kcell = 1,ncells0
 !		stop
 !	endif
 enddo
+ok = .true.
 end subroutine
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
-subroutine Divider(kcell0)
+subroutine Divider(kcell0,ok)
+logical :: ok
 integer :: kcell0
 integer :: kcell1, kpar=0
 real(REAL_KIND) :: tnow, a, c(3)
@@ -505,6 +564,12 @@ type(cell_type), pointer :: p0, p1
 !write(nflog,*) 'Divider: ',kcell0
 tnow = istep*DELTA_T
 ncells = ncells + 1
+if (ncells == MAX_CELLS) then
+	write(logmsg,*) 'Maximum number of cells reached: ',MAX_CELLS
+	call logger(logmsg)
+	ok = .false.
+	return
+endif
 kcell1 = ncells
 p0 => cell_list(kcell0)
 c = p0%centre
@@ -512,7 +577,10 @@ p0%a = p0%a/2
 if (p0%a < p0%b) then
 	write(*,*) 'Error: Divider: a < b: cell: ',kcell1,p0%a,p0%b
 	write(*,*) 'aspect_n, a_n, b_n, beta: ',p0%aspect_n, p0%a_n, p0%b_n, p0%beta
-	stop
+	write(logmsg,*) 'Error: Divider: a < b: cell: ',kcell1,p0%a,p0%b
+	call logger(logmsg)
+	ok = .false.
+	return
 endif
 
 p0%birthtime = tnow
@@ -530,6 +598,7 @@ endif
 allocate(p1%nbrlist(MAX_NBRS))
 call SetNeighbours(kcell0)
 call SetNeighbours(kcell1)
+ok = .true.
 end subroutine
 
 !--------------------------------------------------------------------------------
@@ -574,7 +643,7 @@ subroutine simulate_step(res) BIND(C)
 !DEC$ ATTRIBUTES DLLEXPORT :: simulate_step  
 use, intrinsic :: iso_c_binding
 integer(c_int) :: res
-integer :: nt=10
+integer :: it, nt
 real(REAL_KIND) :: dt
 integer :: kcell
 type(cell_type), pointer :: p
@@ -585,18 +654,31 @@ if (mod(istep,1) == 0) then
 	write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
 	call logger(logmsg)
 endif
-call Grower
-!call SumContacts
-!call Mover
-!do kcell = 1,ncells
-!    p =>cell_list(kcell)
-!	if (p%a < p%b) then
-!		write(*,*) 'Error: simulate_step: a < b: cell: ',kcell,p%a,p%b
-!		stop
-!	endif
-!enddo
-dt = DELTA_T/nt
-call solver(dt,nt,ok)
+call Grower(ok)
+if (.not.ok) then
+	res = 1
+	return
+endif
+if (isolver == EXPLICIT_SOLVER) then
+	nt = 10
+	dt = DELTA_T/nt
+	do it = 1,nt
+		call SumContacts(ok)
+		if (.not.ok) then
+			res = 1
+			return
+		endif
+		call Mover(dt)
+	enddo
+	ok = .true.
+elseif (isolver == EULER_SOLVER) then
+	nt = 1
+	call solver(dt,nt,ok)
+elseif (isolver == RKF45_SOLVER) then
+	nt = 20
+	dt = DELTA_T/nt
+	call solver(dt,nt,ok)
+endif
 if (ok) then
     res = 0
 else

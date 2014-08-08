@@ -40,7 +40,7 @@ double myvalgrad
 //     (1/2).b^2/a^2 <= s <= 1 - (1/2).b^2/a^2
 
 void __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1, double*orient1, 
-	double aval2, double bval2, double *centre2, double*orient2, 
+	double aval2, double bval2, double *centre2, double*orient2, double tol,
 	double *s1, double *s2, double *rad1, double *rad2, double *d, int *res)
 {
 	double x[2], lo[2], hi[2];
@@ -74,7 +74,7 @@ void __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1,
 		if (x[i] < lo[i]) x[i] = lo[i];
 		if (x[i] > hi[i]) x[i] = hi[i];
 	}
-	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, NULL, NULL) ;
+	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, tol, myvalue, mygrad, myvalgrad, NULL, NULL) ;
 //	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, work, iwork) ;
 	*s1 = x[0];
 	*s2 = x[1];

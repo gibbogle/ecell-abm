@@ -1,13 +1,16 @@
 #include <qstring.h>
 #include "params.h"
+#include "log.h"
+
+LOG_USE();
 
 Params::Params()
 {
     PARAM_SET params[] = {
 
-{"INITIAL_COUNT", 1000, 0, 0,
-"Initial number of tumour cells",
-"Initial number of tumour cells"},
+{"BLOCK_SIZE", 5, 0, 0,
+"Dimension of initial block",
+"Dimension N of initial block of cells (NxNxN)"},
 
 {"DIVIDE_TIME_MEDIAN", 24, 0, 0,
 "Division time median parameter",
@@ -23,10 +26,14 @@ Params::Params()
 "Length of the simulation.\n\
 [hours]"},
 
-{"DELTA_T", 30.0, 0, 0,
+{"DELTA_T", 600.0, 0, 0,
 "Time step",
 "Length of main time step, for cell death, division, etc.  Should be a divisor of 3600. \n\
 [sec]"},
+
+{"SOLVER",0,0,0,
+"Solver",
+"Choice of solvers: Explicit, Backward Euler, Runge-Kutta 45"},
 
 {"SEED1", 1234, 0, 0,
 "First RNG seed",
@@ -44,22 +51,22 @@ Params::Params()
  "Animation interval (timesteps)",
  "Interval between animation screen updates (timesteps)."},
 
-{"F_DRAG", 100, 0, 0,
+{"F_DRAG", 50, 0, 0,
 "Drag factor",
 "Velocity v = F/Fdrag, angular velocity w = M/Mdrag\n\
     F = total force vector, M = total moment vector, Fdrag = force drag coefficient, Mdrag = moment drag coefficient."},
 
-{"M_DRAG", 10, 0, 0,
+{"M_DRAG", 50, 0, 0,
 "Moment drag factor",
 "Moment drag factor."},
 
-{"F_ALPHA", 0.5, 0, 1,
+{"F_ALPHA", 0.0, 0, 1,
 "Smoothing factor",
 "To control oscillations, cell motion is determined by force F and moment M computed as a weighted sum of current contacts and previous F and M: \n\
- F = Falpha*(sum of forces) + (1-Falpha)*Fprev, where Falpha is the force smoothing factor and Fprev is the value of F in the previous time step \n\
- M = Malpha*(sum of moments) + (1-Malpha)*Mprev, where Malpha is the moment smoothing factor and Mprev is the value of M in the previous time step."},
+ F = (1-Falpha)*(sum of forces) + Falpha*Fprev, where Falpha is the force smoothing factor and Fprev is the value of F in the previous time step \n\
+ M = (1-Malpha)*(sum of moments) + Malpha*Mprev, where Malpha is the moment smoothing factor and Mprev is the value of M in the previous time step."},
 
-{"M_ALPHA", 0.5, 0, 1,
+{"M_ALPHA", 0.0, 0, 1,
 "Moment smoothing factor",
 "Moment smoothing factor."},
 
@@ -86,7 +93,6 @@ Params::Params()
 	}
 }
 
-
 PARAM_SET Params::get_param(int k)
 {
 	return workingParameterList[k];
@@ -94,7 +100,7 @@ PARAM_SET Params::get_param(int k)
 
 void Params::set_value(int k, double v)
 {
-	workingParameterList[k].value = v;
+    workingParameterList[k].value = v;
 }
 
 void Params::set_label(int k, QString str)

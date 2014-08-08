@@ -1,5 +1,5 @@
 /****************************************************************************
- spheroid_GUI
+ ecell_GUI
 ****************************************************************************/
 
 #include <QtGui>
@@ -255,6 +255,7 @@ void MainWindow::createActions()
     connect(buttonGroup_plane, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(buttonClick_plane(QAbstractButton*)));
 	connect(lineEdit_fraction, SIGNAL(textEdited(QString)), this, SLOT(textEdited_fraction(QString)));
     connect(action_select_constituent, SIGNAL(triggered()), SLOT(onSelectConstituent()));
+    connect(buttonGroup_solver, SIGNAL(buttonClicked(QAbstractButton*)), this, SLOT(radioButtonChanged(QAbstractButton*)));
 }
 
 //--------------------------------------------------------------------------------------------------------
@@ -864,16 +865,17 @@ void MainWindow::loadParams()
 
 //--------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------
-QString MainWindow::parse_rbutton(QString wtag, int *rbutton_case)
+QString MainWindow::parse_rbutton(QString qsname, int *rbutton_case)
 {
-	// parse wtag into part before '_' and part after '_'
-	int j = wtag.indexOf('_');
-	QString suffix = wtag.mid(j+1);
-	// the prefix becomes wtag, the suffix becomes rbutton_case, an integer 0,1,2,...
-	wtag = wtag.mid(0,j);
-	bool ok;
-	*rbutton_case = suffix.toInt(&ok);
-	return wtag;
+    // parse wtag into part before '_' and part after '_'
+    QString wtag = qsname.mid(5);   // strips off "rbut_"
+    int j = wtag.lastIndexOf('_');  // position of last '_'
+    QString suffix = wtag.mid(j+1);
+    // the prefix becomes wtag0, the suffix becomes rbutton_case, an integer 0,1,2,...
+    QString wtag0 = wtag.mid(0,j);
+    bool ok;
+    *rbutton_case = suffix.toInt(&ok);
+    return wtag0;
 }
 
 //--------------------------------------------------------------------------------------------------------
@@ -2580,6 +2582,27 @@ void MainWindow::changeParam()
 			*/
 		}
 	}
+}
+
+//------------------------------------------------------------------------------------------------------
+// This should be used for any radioButtonGroups
+//------------------------------------------------------------------------------------------------------
+void MainWindow::radioButtonChanged(QAbstractButton *b)
+{
+    QString wtag = b->objectName();
+    int rbutton_case;
+    if (b->isChecked()) {
+        QString ptag = parse_rbutton(wtag,&rbutton_case);
+        // Now need to reflect the change in the workingParameterList
+        // Need to locate ptag
+        for (int k=0; k<nParams; k++) {
+            PARAM_SET p = parm->get_param(k);
+            if (ptag.compare(p.tag) == 0) {
+                parm->set_value(k,double(rbutton_case));
+                break;
+            }
+        }
+    }
 }
 
 //--------------------------------------------------------------------------------------------------------

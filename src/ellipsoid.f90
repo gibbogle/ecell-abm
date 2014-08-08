@@ -135,7 +135,7 @@ end subroutine
 !----------------------------------------------------------------------------------------
 subroutine CellContactForce(delta, s1, s2, F)
 real(REAL_KIND) :: delta, s1, s2, F
-real(REAL_KIND), parameter :: a = 2, b = 2, c = 10, e = 3.0
+real(REAL_KIND), parameter :: a = 2, b = 2, c = 20, e = 3.0
 real(REAL_KIND), parameter :: g = e/2.5
 real(REAL_KIND) :: d, t1, t2, tsum, afactor
 
@@ -234,6 +234,7 @@ end subroutine
 !----------------------------------------------------------------------------------------
 subroutine CellInteraction1(ell1, ell2)
 type(cell_type) :: ell1, ell2
+real(REAL_KIND) :: tol
 real(REAL_KIND) :: s1, s2
 real(REAL_KIND) :: delta
 logical :: incontact
@@ -244,7 +245,7 @@ integer :: res
 
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
 
-call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta,res)
+call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,tol,s1,s2,rad1,rad2,delta,res)
 ! delta is the cell separation at the "closest" points
 incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
 if (incontact) then
@@ -272,13 +273,14 @@ end subroutine
 
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
-subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,F,M1,M2,ok)
+subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,F,M1,M2,ok)
 !type(cell_type) :: ell1, ell2
 real(REAL_KIND) :: a1, b1, centre1(3), orient1(3)
 real(REAL_KIND) :: a2, b2, centre2(3), orient2(3)
-real(REAL_KIND) :: F(3), M1(3), M2(3)
-logical :: ok
 real(REAL_KIND) :: s1, s2
+real(REAL_KIND) :: F(3), M1(3), M2(3)
+real(REAL_KIND) :: tol = 1.0d-5
+logical :: ok
 real(REAL_KIND) :: delta
 logical :: incontact
 real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2 
@@ -289,9 +291,10 @@ integer :: res
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
 
 !call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta)
-call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,rad1,rad2,delta,res)
-if (res /= 0) then
-	write(*,*) 'Error: CellInteraction: res: ',res
+call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,tol,s1,s2,rad1,rad2,delta,res)
+if (res /= 0 &
+	.or. isnan(delta) .or. isnan(s1) .or. isnan(s2) .or. isnan(rad1) .or. isnan(rad2)) then
+	write(*,'(a,i3,5f10.4)') 'Error: CellInteraction: res: ',res,s1,s2,rad1,rad2,delta
 	write(*,'(a,8f8.3)') 'Cell 1: ',a1,b1,centre1,orient1
 	write(*,'(a,8f8.3)') 'Cell 2: ',a2,b2,centre2,orient2
 	ok = .false.
@@ -299,6 +302,9 @@ if (res /= 0) then
 endif
 ! delta is the cell separation at the "closest" points
 incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
+F = 0
+M1 = 0
+M2 = 0
 if (incontact) then
 !    write(nflog,'(a,5f6.2)') 's1, s2, rad1, rad2, delta: ',s1,s2,rad1,rad2,delta
     p1 = (2*s1-1)*a1*orient1    ! vector offset of sphere centre from ellipsoid centre

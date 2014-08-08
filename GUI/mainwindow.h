@@ -13,11 +13,7 @@
 
 using namespace std;
 
-//#ifdef __DISPLAY768
-//#include "ui_spheroid_GUI-768.h"
-//#else
 #include "ui_ecell_GUI.h"
-//#endif
 #include <qwt_plot_curve.h>
 #include "params.h"
 #include "qmylabel.h"
@@ -120,6 +116,7 @@ private slots:
     void showGradient2D();
     void setSavePosStart();
 
+    void radioButtonChanged(QAbstractButton *);
     void on_radioButton_oxygen_clicked();
     void on_radioButton_glucose_clicked(bool checked);
 
@@ -208,7 +205,7 @@ private:
     double plognorm(double x1, double x2, double mu, double sig);
     void create_lognorm_dist(double p1, double p2,int n, double *x, double *prob);
 	int dist_limit(double *p, int n);
-	QString parse_rbutton(QString wtag, int *rbutton_case);
+    QString parse_rbutton(QString qsname, int *rbutton_case);
 	void setBdryRadioButton(QRadioButton *w_rb, int val);
 	void setLineEditVisibility(QString wname, int val);
 

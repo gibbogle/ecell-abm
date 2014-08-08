@@ -40,14 +40,18 @@ type XYZ_type
 end type
 
 integer, parameter :: nflog=10, nfin=11, nfout=12, nfres=13
-integer, parameter :: MAX_CELLS = 10000
+integer, parameter :: MAX_CELLS = 1000
 integer, parameter :: MAX_NBRS = 24
 real(REAL_KIND), parameter :: CYCLETIME0 = 12*60	! 12 hours -> minutes
 logical, parameter :: POLARITY = .false.
+integer, parameter :: EXPLICIT_SOLVER = 0
+integer, parameter :: EULER_SOLVER = 1
+integer, parameter :: RKF45_SOLVER = 2
 
 character*(128) :: inputfile
 character*(128) :: outputfile
 
+integer :: NX, NY, NZ, isolver
 integer :: Mnodes, ncpu_input, ncells, nsteps, istep
 integer :: seed(2)
 real(REAL_KIND) :: DELTA_T
@@ -64,6 +68,7 @@ character*(128) :: logfile
 character*(2048) :: logmsg
 
 type(cell_type), allocatable, target :: cell_list(:)
+integer, allocatable :: s1s2(:,:,:)
 
 logical :: dbug = .false.
 
