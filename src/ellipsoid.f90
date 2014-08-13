@@ -261,27 +261,29 @@ if (incontact) then
 	if (dbug) write(nflog,'(a,6f8.4)') 's1,s2,delta,F: ',s1,s2,delta,F
 	ell1%F = ell1%F + F
 !	ell2%F = ell2%F - F		! for now, apply force to the current cell only
-	! M1 = r1 x F, M2 = r2 x F      ! signs???
-	r1 = p1 + rad1*v    ! vector offset of contact point from ellipsoid centre
-!	r2 = p2 - rad2*v
-	call cross_product(r1,F,M1)
-!	call cross_product(r2,-F,M2)
-	ell1%M = ell1%M + M1
-!	ell2%M = ell2%M + M2
+	if (simulate_rotation) then
+		! M1 = r1 x F, M2 = r2 x F      ! signs???
+		r1 = p1 + rad1*v    ! vector offset of contact point from ellipsoid centre
+	!	r2 = p2 - rad2*v
+		call cross_product(r1,F,M1)
+	!	call cross_product(r2,-F,M2)
+		ell1%M = ell1%M + M1
+	!	ell2%M = ell2%M + M2
+	endif
 endif
 end subroutine
 
 !----------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------
-subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,F,M1,M2,ok)
+subroutine CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,delta,F,M1,M2,ok)
 !type(cell_type) :: ell1, ell2
 real(REAL_KIND) :: a1, b1, centre1(3), orient1(3)
 real(REAL_KIND) :: a2, b2, centre2(3), orient2(3)
 real(REAL_KIND) :: s1, s2
+real(REAL_KIND) :: delta
 real(REAL_KIND) :: F(3), M1(3), M2(3)
 real(REAL_KIND) :: tol = 1.0d-5
 logical :: ok
-real(REAL_KIND) :: delta
 logical :: incontact
 real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2 
 real(REAL_KIND) :: r1(3), r2(3)	    ! Displacement of contact points on cell1 and cell2 relative to centres

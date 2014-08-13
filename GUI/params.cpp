@@ -12,6 +12,10 @@ Params::Params()
 "Dimension of initial block",
 "Dimension N of initial block of cells (NxNxN)"},
 
+{"GROWTH", 1, 0, 1,
+"Cells grow?",
+"Simulate cell growth and division."},
+
 {"DIVIDE_TIME_MEDIAN", 24, 0, 0,
 "Division time median parameter",
 "The time taken for tumour cell division has a lognormal distribution, described by the median and shape parameters. \n\
@@ -26,7 +30,7 @@ Params::Params()
 "Length of the simulation.\n\
 [hours]"},
 
-{"DELTA_T", 600.0, 0, 0,
+{"DELTA_T", 300.0, 0, 0,
 "Time step",
 "Length of main time step, for cell death, division, etc.  Should be a divisor of 3600. \n\
 [sec]"},
@@ -47,30 +51,30 @@ Params::Params()
 "Number of CPUs",
 "Number of CPUs to use for the simulation."},
 
-{"NT_ANIMATION", 10, 0, 0,
+{"NT_ANIMATION", 1, 0, 0,
  "Animation interval (timesteps)",
  "Interval between animation screen updates (timesteps)."},
 
-{"F_DRAG", 50, 0, 0,
+{"F_DRAG", 20, 0, 0,
 "Drag factor",
 "Velocity v = F/Fdrag, angular velocity w = M/Mdrag\n\
     F = total force vector, M = total moment vector, Fdrag = force drag coefficient, Mdrag = moment drag coefficient."},
 
-{"M_DRAG", 50, 0, 0,
+{"M_DRAG", 20, 0, 0,
 "Moment drag factor",
 "Moment drag factor."},
 
-{"F_ALPHA", 0.0, 0, 1,
+{"F_ALPHA", 0.5, 0, 1,
 "Smoothing factor",
 "To control oscillations, cell motion is determined by force F and moment M computed as a weighted sum of current contacts and previous F and M: \n\
  F = (1-Falpha)*(sum of forces) + Falpha*Fprev, where Falpha is the force smoothing factor and Fprev is the value of F in the previous time step \n\
  M = (1-Malpha)*(sum of moments) + Malpha*Mprev, where Malpha is the moment smoothing factor and Mprev is the value of M in the previous time step."},
 
-{"M_ALPHA", 0.0, 0, 1,
+{"M_ALPHA", 0.5, 0, 1,
 "Moment smoothing factor",
 "Moment smoothing factor."},
 
-{"F_JIGGLE", 0.005, 0, 0,
+{"F_JIGGLE", 0.01, 0, 0,
 "Jiggle factor",
 "A random perturbation can be applied to cell motion, independently to linear and angular velocities:\n\
  Each component of velocity is perturbed by dv = R*Fjiggle/Fdrag\n\

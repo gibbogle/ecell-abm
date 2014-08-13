@@ -78,7 +78,7 @@ end do
 !			stop
 !		endif
 	enddo
-!	call terminate_run(res)
+	call terminate_run(res)
 !	!call cpu_time(t2)
 !	t2 = wtime()
 !	write(*,*) 'time: ',t2-t1

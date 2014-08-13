@@ -85,11 +85,12 @@ end subroutine
 subroutine ReadCellParams(ok)
 logical :: ok
 real(REAL_KIND) :: t_div_median, t_div_shape, hours, deltat
-integer :: nb0, nt_anim
+integer :: nb0, nt_anim, igrow
 character*(256) :: cellmlfile
 
 open(nfin,file=inputfile)
 read(nfin,*) nb0
+read(nfin,*) igrow
 read(nfin,*) t_div_median
 read(nfin,*) t_div_shape
 read(nfin,*) hours
@@ -111,6 +112,8 @@ close(nfin)
 NX = nb0
 NY = nb0
 NZ = nb0
+simulate_rotation = (Mdrag > 0)
+simulate_growth = (igrow == 1)
 DELTA_T = deltat/60 ! sec -> min
 nsteps = hours*60./DELTA_T
 write(logmsg,*) 'hours,DELTA_T, nsteps: ',hours,DELTA_T,nsteps
@@ -165,6 +168,7 @@ call PlaceCells
 do kcell = 1,ncells
 	call SetNeighbours(kcell)
 enddo
+cell_list0 = cell_list
 write(nflog,*) 'ncells: ',ncells
 
 end subroutine
@@ -180,9 +184,11 @@ type(cell_type), pointer :: p
 
 if (allocated(cell_list)) then
 	deallocate(cell_list)
+	deallocate(cell_list0)
 	deallocate(s1s2)
 endif
 allocate(cell_list(MAX_CELLS))
+allocate(cell_list0(MAX_CELLS))
 allocate(s1s2(MAX_CELLS,MAX_CELLS,2))
 s1s2 = 0.5
 
@@ -193,7 +199,7 @@ aspect = a/b
 beta = 1.0
 dx = 2*b
 dy = dx
-dz = 2.5*a
+dz = 2.0*a
 orient0 = (/ 0., 0., 1. /)
 kcell = 0
 do ix = 1,nx
@@ -375,7 +381,7 @@ do kcell = 1,ncells
 		s2 = 0.5
 		s1 = s1s2(kcell,jcell,1)
 		s2 = s1s2(kcell,jcell,2)
-        call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,s1,s2,F,M1,M2,ok)
+        call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,s1,s2,delta,F,M1,M2,ok)
         if (.not.ok) return
 		s1s2(kcell,jcell,1) = s1
 		s1s2(kcell,jcell,2) = s2
@@ -391,6 +397,9 @@ do kcell = 1,ncells
 			write(*,'(a,2i6,3f8.4)') 'Bad M1: ',kcell,k,M1
 			stop
 		endif
+!		if (kcell == 14) then
+!			write(nflog,'(2i4,f8.4,2x,3f8.4,2x,3f8.4)') kcell,jcell,delta,F,M1
+!		endif
     enddo
     famp = sqrt(dot_product(p%F,p%F))
     if (dbug) write(nflog,*) 'famp: ',famp
@@ -415,7 +424,7 @@ subroutine Mover(dt)
 real(REAL_KIND) :: dt
 integer :: k, kcell, i, kpar=0
 integer, allocatable :: permc(:)
-real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R, del(3)
+real(REAL_KIND) :: mamp, dangle, vm(3), v(3), R, del(3), rot(3), amp
 type(cell_type), pointer :: p
 logical :: Fjiggle, Mjiggle
 
@@ -438,7 +447,7 @@ do k = 1,ncells
 			p%F(i) = p%F(i) + R*Fjigglefactor
 		enddo
 	endif
-	if (Mjiggle) then
+	if (simulate_rotation .and. Mjiggle) then
 		do i = 1,3
 			R = par_rnor(kpar)
 			p%M(i) = p%M(i) + R*Mjigglefactor
@@ -447,20 +456,32 @@ do k = 1,ncells
 	del = (dt/Fdrag)*p%F
     p%centre = p%centre + del
     if (dbug) write(nflog,'(i6,i3,6f8.4)') istep,k,del,p%centre
-    mamp = sqrt(dot_product(p%M,p%M))
-    if (mamp == 0) cycle
-    vm = p%M/mamp     ! unit vector of moment axis
-    dangle = (dt/Mdrag)*mamp
-!    write(nflog,'(2e12.4,3f8.4)') mamp,angle,vm
-    call rotate(p%orient,vm,dangle,v)
-    if (nancomponent(v)) then
-		write(*,'(a,i6,3f8.4)') 'Bad rotation: ',k,p%orient
-		write(*,'(a,3f8.3)') 'p%M: ',p%M
-		write(*,'(a,5f8.3)') 'mamp,vm,dangle: ',mamp,vm,dangle
-		write(*,'(a,3f8.4)') 'to: ',v
-		stop
+	if (simulate_rotation) then
+		mamp = sqrt(dot_product(p%M,p%M))
+		if (mamp == 0) cycle
+		vm = p%M/mamp     ! unit vector of moment axis
+		dangle = (dt/Mdrag)*mamp
+		! Two possible ways to apply the moment
+		! 1.
+!		call rotate(p%orient,vm,dangle,v)
+!		p%orient = v
+		! 2.
+		call cross_product(p%M/Mdrag,p%orient,rot)
+		p%orient = p%orient + dt*rot
+		amp = sqrt(dot_product(p%orient,p%orient))
+		p%orient = p%orient/amp
+		
+!		if (kcell == 14) then
+!			write(nflog,'(8f9.4)') mamp,dangle,vm,p%orient
+!		endif
+!		if (nancomponent(v)) then
+!			write(*,'(a,i6,3f8.4)') 'Bad rotation: ',k,p%orient
+!			write(*,'(a,3f8.3)') 'p%M: ',p%M
+!			write(*,'(a,5f8.3)') 'mamp,vm,dangle: ',mamp,vm,dangle
+!			write(*,'(a,3f8.4)') 'to: ',v
+!			stop
+!		endif
 	endif
-    p%orient = v
 enddo
 
 deallocate(permc)
@@ -654,7 +675,10 @@ if (mod(istep,1) == 0) then
 	write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
 	call logger(logmsg)
 endif
-call Grower(ok)
+ok = .true.
+if (simulate_growth) then
+	call Grower(ok)
+endif
 if (.not.ok) then
 	res = 1
 	return
@@ -848,6 +872,28 @@ end subroutine
 
 !-----------------------------------------------------------------------------------------
 !-----------------------------------------------------------------------------------------
+subroutine CheckAngles
+real(REAL_KIND) :: cosa, cosamin
+integer :: k, kmin
+cosamin = 1.0e10
+do k = 1,ncells
+	cosa = dot_product(cell_list(k)%orient,cell_list0(k)%orient)
+	if (cosa < cosamin) then
+		cosamin = cosa
+		kmin = k
+	endif
+enddo
+write(nflog,*)
+write(nflog,*) 'Minimum cosine of rotation angle: ',kmin,cosamin
+write(nflog,*) 'angle: ',acos(cosamin)*180/PI
+write(nflog,*)
+write(nflog,'(a,3f8.4)') 'Initial orient: ',cell_list0(kmin)%orient
+write(nflog,'(a,3f8.4)') 'Final orient:   ',cell_list(kmin)%orient
+write(nflog,*)
+end subroutine
+
+!-----------------------------------------------------------------------------------------
+!-----------------------------------------------------------------------------------------
 subroutine terminate_run(res) BIND(C)
 !DEC$ ATTRIBUTES DLLEXPORT :: terminate_run 
 use, intrinsic :: iso_c_binding
@@ -856,6 +902,7 @@ character*(8), parameter :: quit = '__EXIT__'
 integer :: error, i
 
 call logger('terminate_run')
+call CheckAngles
 call Wrapup
 
 if (res == 0) then

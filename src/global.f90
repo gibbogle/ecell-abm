@@ -60,6 +60,8 @@ logical :: use_TCP = .true.         ! turned off in para_main()
 logical :: use_CPORT1 = .false.
 logical :: stopped, clear_to_send
 logical :: simulation_start, par_zig_init, initialized
+logical :: simulate_rotation
+logical :: simulate_growth
 real(REAL_KIND) :: Fdrag, Mdrag
 real(REAL_KIND) :: Falpha, Malpha
 real(REAL_KIND) :: Fjigglefactor, Mjigglefactor
@@ -68,6 +70,7 @@ character*(128) :: logfile
 character*(2048) :: logmsg
 
 type(cell_type), allocatable, target :: cell_list(:)
+type(cell_type), allocatable, target :: cell_list0(:)
 integer, allocatable :: s1s2(:,:,:)
 
 logical :: dbug = .false.

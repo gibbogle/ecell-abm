@@ -100,7 +100,7 @@ real(REAL_KIND), allocatable :: xx(:), f0(:), f1(:), Fbase(:,:,:), Mbase(:,:,:)
 real(REAL_KIND) :: t, dx
 integer :: i, j, jj
 integer :: i1, i2, jn, k1, k2, k, nzero, ntzero, nfeval, kpar=0
-real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3), s1, s2
+real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3), s1, s2, delta
 real(REAL_KIND) :: FF(3), MM1(3), MM2(3), Fsum(3), Msum(3), R
 type(cell_type), pointer :: p1, p2
 integer, allocatable :: connected(:,:), nconnected(:)
@@ -194,7 +194,7 @@ do j = 0,n		! column index, except for j=0 which evaluates the current f(:)
 !			s2 = 0.5
 			s1 = s1s2(i1,i2,1)
 			s2 = s1s2(i1,i2,2)
-			call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,FF,MM1,MM2,ok)
+			call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,delta,FF,MM1,MM2,ok)
 			nfeval = nfeval + 1
 			if (FF(1)==0 .and. FF(2)==0 .and. FF(3)==0) then
 				nzero = nzero + 1
@@ -286,7 +286,7 @@ subroutine fderiv(t,x,xp)
 real(REAL_KIND) :: t, x(*), xp(*)
 logical :: ok
 integer :: i1, i2, j, k1, k2, kpar=0
-real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3), s1, s2
+real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3), s1, s2, delta
 real(REAL_KIND) :: FF(3), MM1(3), MM2(3), Fsum(3), Msum(3), R, mamp, vm(3), dangle 
 type(cell_type), pointer :: p1, p2
 integer :: np = 3	! 6
@@ -298,8 +298,11 @@ do i1 = 1,ncells
     b1 = p1%b
     k1 = (i1-1)*np
     centre1 = x(k1+1:k1+3)
-!    orient1 = x(k1+4:k1+6)
-	orient1 = p1%orient
+    if (np == 6) then
+		orient1 = x(k1+4:k1+6)
+	else
+		orient1 = p1%orient
+	endif
     do j = 1,p1%nbrs
         i2 = p1%nbrlist(j)
         if (F(i1,i2,1) /= 0) cycle		!??????????
@@ -308,13 +311,16 @@ do i1 = 1,ncells
         b2 = p2%b
         k2 = (i2-1)*np
         centre2 = x(k2+1:k2+3)
-!        orient2 = x(k2+4:k2+6)
-		orient2 = p2%orient
+	    if (np == 6) then
+			orient2 = x(k2+4:k2+6)
+		else
+			orient2 = p2%orient
+		endif
 !		s1 = 0.5	! initial guesses
 !		s2 = 0.5
 		s1 = s1s2(i1,i2,1)
 		s2 = s1s2(i1,i2,2)
-        call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,FF,MM1,MM2,ok)
+        call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,delta,FF,MM1,MM2,ok)
         if (.not.ok) then
             write(*,*) 'istep, i1, i2: ',istep,i1,i2
             return
@@ -325,8 +331,10 @@ do i1 = 1,ncells
 		s1s2(i2,i1,2) = s2
         F(i1,i2,:) = FF
         F(i2,i1,:) = -F(i1,i2,:) + (/1.0e-6,0.0,0.0/)
-!        M(i1,i2,:) = MM1
-!        M(i2,i1,:) = MM2
+        if (np == 6) then
+			M(i1,i2,:) = MM1
+			M(i2,i1,:) = MM2
+		endif
     enddo
 enddo
 Fsum = 0
@@ -336,7 +344,9 @@ do i1 = 1,ncells
     do j = 1,p1%nbrs
         i2 = p1%nbrlist(j)
         Fsum = Fsum + F(i1,i2,:)
-!        Msum = Msum + M(i1,i2,:)
+        if (np == 6) then
+	        Msum = Msum + M(i1,i2,:)
+	    endif
     enddo
 !	if (Fjiggle) then
 !		do i = 1,3
@@ -357,7 +367,9 @@ do i1 = 1,ncells
 !!    dangle = mamp/Mdrag
 !!    orient1 = x(k1+4:k1+6)
 !!    call rotate(orient1,vm,dangle,xp(k1+4:k1+6))
-!	call cross_product(Msum/Mdrag,orient1,xp(k1+4:k1+6))
+	if (np == 6) then
+		call cross_product(Msum/Mdrag,orient1,xp(k1+4:k1+6))
+	endif
 enddo
 !write(*,*) 'xp:'
 !write(*,'(3f7.3,4x,3f7.3)') xp(1:6*ncells)
@@ -377,7 +389,13 @@ real(REAL_KIND), allocatable :: xp(:)       ! derivs of cell position and orient
 real(REAL_KIND) :: tstart, tend, relerr, abserr
 real(REAL_KIND) :: amp
 real(REAL_KIND), allocatable :: Jac(:,:)
-integer :: np = 3	! 6
+integer :: np 
+
+if (simulate_rotation) then
+	np = 6
+else
+	np = 3
+endif
 
 !do kcell = 1,ncells
 !    p =>cell_list(kcell)
@@ -437,6 +455,8 @@ else
 
 	tstart = 0
 	xp = 0
+	F = 0
+	M = 0
 	call fderiv(tstart,x,xp)
 
 	abserr = sqrt ( epsilon ( abserr ) )

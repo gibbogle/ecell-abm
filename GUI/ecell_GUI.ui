@@ -1616,7 +1616,7 @@ padding: 8px
             <property name="geometry">
              <rect>
               <x>310</x>
-              <y>190</y>
+              <y>310</y>
               <width>181</width>
               <height>101</height>
              </rect>
@@ -1694,6 +1694,22 @@ padding: 8px
               <string>Solver</string>
              </property>
             </widget>
+           </widget>
+           <widget class="QMyCheckBox" name="cbox_GROWTH">
+            <property name="geometry">
+             <rect>
+              <x>420</x>
+              <y>180</y>
+              <width>81</width>
+              <height>18</height>
+             </rect>
+            </property>
+            <property name="text">
+             <string>Cells grow?</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
            </widget>
           </widget>
          </widget>
