@@ -1,4 +1,5 @@
 module global
+use real_kind_mod
 use omp_lib
 use par_zig_mod
 use winsock
@@ -7,8 +8,6 @@ implicit none
 
 #include 'min_dist_interface.f90'
 
-integer, parameter :: SP = kind(1.0), DP = kind(1.0d0)
-integer, parameter :: REAL_KIND = DP
 integer, parameter :: TCP_PORT_0 = 5000		! main communication port (logging)
 integer, parameter :: TCP_PORT_1 = 5001		! data transfer port (plotting)
 

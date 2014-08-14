@@ -3,6 +3,7 @@
 module solve
 use ellipsoid
 use rkf45
+use pardiso_mod
 
 implicit none
 
