@@ -42,7 +42,7 @@ padding: 8px
     <item row="0" column="0">
      <widget class="QStackedWidget" name="stackedWidget">
       <property name="currentIndex">
-       <number>0</number>
+       <number>2</number>
       </property>
       <widget class="QWidget" name="page_input">
        <layout class="QVBoxLayout" name="verticalLayout">
@@ -1616,9 +1616,9 @@ padding: 8px
             <property name="geometry">
              <rect>
               <x>310</x>
-              <y>310</y>
+              <y>290</y>
               <width>181</width>
-              <height>101</height>
+              <height>121</height>
              </rect>
             </property>
             <property name="title">
@@ -1640,36 +1640,36 @@ padding: 8px
               <bool>true</bool>
              </property>
              <attribute name="buttonGroup">
-              <string>buttonGroup_solver</string>
+              <string notr="true">buttonGroup_solver</string>
              </attribute>
             </widget>
             <widget class="QRadioButton" name="rbut_SOLVER_1">
              <property name="enabled">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <property name="geometry">
               <rect>
                <x>30</x>
                <y>50</y>
-               <width>101</width>
+               <width>131</width>
                <height>18</height>
               </rect>
              </property>
              <property name="text">
-              <string>Backward Euler</string>
+              <string>Slow backward Euler</string>
              </property>
              <property name="checkable">
-              <bool>false</bool>
+              <bool>true</bool>
              </property>
              <attribute name="buttonGroup">
-              <string>buttonGroup_solver</string>
+              <string notr="true">buttonGroup_solver</string>
              </attribute>
             </widget>
-            <widget class="QRadioButton" name="rbut_SOLVER_2">
+            <widget class="QRadioButton" name="rbut_SOLVER_3">
              <property name="geometry">
               <rect>
                <x>30</x>
-               <y>70</y>
+               <y>90</y>
                <width>82</width>
                <height>18</height>
               </rect>
@@ -1678,7 +1678,7 @@ padding: 8px
               <string>Runge-Kutta</string>
              </property>
              <attribute name="buttonGroup">
-              <string>buttonGroup_solver</string>
+              <string notr="true">buttonGroup_solver</string>
              </attribute>
             </widget>
             <widget class="QMyLabel" name="label_solver">
@@ -1693,6 +1693,22 @@ padding: 8px
              <property name="text">
               <string>Solver</string>
              </property>
+            </widget>
+            <widget class="QRadioButton" name="rbut_SOLVER_2">
+             <property name="geometry">
+              <rect>
+               <x>30</x>
+               <y>70</y>
+               <width>131</width>
+               <height>17</height>
+              </rect>
+             </property>
+             <property name="text">
+              <string>Fast backward Euler</string>
+             </property>
+             <attribute name="buttonGroup">
+              <string notr="true">buttonGroup_solver</string>
+             </attribute>
             </widget>
            </widget>
            <widget class="QMyCheckBox" name="cbox_GROWTH">
@@ -2041,6 +2057,19 @@ padding: 8px
          </rect>
         </property>
        </widget>
+       <widget class="QLabel" name="label_hour">
+        <property name="geometry">
+         <rect>
+          <x>50</x>
+          <y>0</y>
+          <width>51</width>
+          <height>21</height>
+         </rect>
+        </property>
+        <property name="text">
+         <string>0</string>
+        </property>
+       </widget>
       </widget>
       <widget class="QWidget" name="page_2D">
        <property name="sizePolicy">
@@ -2077,7 +2106,7 @@ padding: 8px
             <bool>true</bool>
            </property>
            <attribute name="buttonGroup">
-            <string>buttonGroup_constituent</string>
+            <string notr="true">buttonGroup_constituent</string>
            </attribute>
           </widget>
          </item>
@@ -2087,7 +2116,7 @@ padding: 8px
             <string>Glucose</string>
            </property>
            <attribute name="buttonGroup">
-            <string>buttonGroup_constituent</string>
+            <string notr="true">buttonGroup_constituent</string>
            </attribute>
           </widget>
          </item>
@@ -2107,7 +2136,7 @@ padding: 8px
             <string>Growth rate</string>
            </property>
            <attribute name="buttonGroup">
-            <string>buttonGroup_constituent</string>
+            <string notr="true">buttonGroup_constituent</string>
            </attribute>
           </widget>
          </item>
@@ -2141,7 +2170,7 @@ padding: 8px
           <bool>true</bool>
          </property>
          <attribute name="buttonGroup">
-          <string>buttonGroup_plane</string>
+          <string notr="true">buttonGroup_plane</string>
          </attribute>
         </widget>
         <widget class="QRadioButton" name="radioButton_YZ">
@@ -2157,7 +2186,7 @@ padding: 8px
           <string>Y-Z</string>
          </property>
          <attribute name="buttonGroup">
-          <string>buttonGroup_plane</string>
+          <string notr="true">buttonGroup_plane</string>
          </attribute>
         </widget>
         <widget class="QRadioButton" name="radioButton_XZ">
@@ -2173,7 +2202,7 @@ padding: 8px
           <string>X-Z</string>
          </property>
          <attribute name="buttonGroup">
-          <string>buttonGroup_plane</string>
+          <string notr="true">buttonGroup_plane</string>
          </attribute>
         </widget>
        </widget>
@@ -2217,7 +2246,7 @@ padding: 8px
      <x>0</x>
      <y>0</y>
      <width>1294</width>
-     <height>18</height>
+     <height>21</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -2535,8 +2564,8 @@ padding: 8px
  </resources>
  <connections/>
  <buttongroups>
-  <buttongroup name="buttonGroup_constituent"/>
-  <buttongroup name="buttonGroup_plane"/>
   <buttongroup name="buttonGroup_solver"/>
+  <buttongroup name="buttonGroup_plane"/>
+  <buttongroup name="buttonGroup_constituent"/>
  </buttongroups>
 </ui>

@@ -1914,6 +1914,7 @@ void MainWindow::showSummary(int hr)
 	}
     hour = hr;
     exthread->mutex1.lock();
+    label_hour->setText(QString::number(int(hour)));
 
 //    hour = summaryData[0]*DELTA_T/(60*60);
 //    hour = summaryData[1]*DELTA_T/60;

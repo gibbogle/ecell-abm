@@ -116,6 +116,8 @@ simulate_rotation = (Mdrag > 0)
 simulate_growth = (igrow == 1)
 DELTA_T = deltat/60 ! sec -> min
 nsteps = hours*60./DELTA_T
+write(logmsg,*) 'isolver: ',isolver
+call logger(logmsg)
 write(logmsg,*) 'hours,DELTA_T, nsteps: ',hours,DELTA_T,nsteps
 call logger(logmsg)
 ok = .true.
@@ -128,7 +130,7 @@ integer :: ncpu
 character*(*) :: infile, outfile
 logical :: ok
 character*(64) :: msg
-integer :: kcell, error
+integer :: kcell, j, error
 
 ok = .true.
 initialized = .false.
@@ -167,9 +169,26 @@ call RngInitialisation
 call PlaceCells
 do kcell = 1,ncells
 	call SetNeighbours(kcell)
+    write(*,*) 'cell: ',kcell, cell_list(kcell)%nbrs
+    write(*,'(20i4)') (cell_list(kcell)%nbrlist(j),j=1,cell_list(kcell)%nbrs)
 enddo
 cell_list0 = cell_list
 write(nflog,*) 'ncells: ',ncells
+
+
+FP1%a = 2
+FP1%b = 2
+FP1%c = 10
+FP1%e = 1.5
+FP1%g = FP1%e/2.5
+
+FP2%a = 10   ! Fr = a when d/b = 1
+FP2%b = 2
+FP2%e = 1.5
+FP2%g = 1   ! Fa = g when d = e
+
+run_kmax = 0
+run_dmax = 0
 
 end subroutine
 
@@ -274,22 +293,28 @@ end subroutine
 subroutine SetNeighbours(kcell)
 integer :: kcell
 integer :: n, i, jcell, nbrlist(1000)
-real(REAL_KIND) :: c0(3), c1(3), r(3), d2, d2lim, d2list(1000)
+real(REAL_KIND) :: c0(3), c1(3), r(3), d2, d2lim0, d2lim, d2list(1000)
 integer, allocatable :: indx(:)
 type(cell_type), pointer :: p
 logical, parameter :: sort = .true.
+real(REAL_KIND) :: nbfactor = 3.0
 
 p => cell_list(kcell)
-d2lim = (2.5*p%a)**2
+d2lim0 = (nbfactor*p%a)**2
 c0 = p%centre
 n = 0
 do jcell = 1,ncells
     if (jcell == kcell) cycle
     c1 = cell_list(jcell)%centre
     r = c1 - c0
+    d2lim = max(d2lim0,(nbfactor*cell_list(jcell)%a)**2)
     d2 = dot_product(r,r)
+    !if (istep == 400 .and. (kcell==8 .or. kcell==9)) then
+    !    write(*,'(2i4,3f8.3,2x,L3)') kcell,jcell,d2,d2lim0,d2lim,(d2 < d2lim)
+    !endif
     if (d2 < d2lim) then
 		if (.not.sort .and. n == MAX_NBRS) then
+			write(*,*) 'Error: SetNeighbours: n > MAX_NBRS'
 			write(nflog,*) 'Error: SetNeighbours: n > MAX_NBRS'
 			stop
 		endif
@@ -355,6 +380,10 @@ do kcell = 1,ncells
     p%M = 0
     do k = 1,p%nbrs
         jcell = p%nbrlist(k)
+        if (jcell == kcell) then
+            write(*,*) 'jcell = kcell: ',jcell
+            stop
+        endif
 	    if (dbug) write(nflog,*) 'Cell: ',kcell,' nbr: ',p%nbrs,k,jcell
         p1 => cell_list(jcell)
         if (nancomponent(p%centre)) then
@@ -539,10 +568,12 @@ end function
 !-----------------------------------------------------------------------------------------
 subroutine Grower(ok)
 logical :: ok
-integer :: kcell, ncells0
+integer :: kcell, ncells0, nbmax
 real(REAL_KIND) :: a, b, t, g, V, e, alfa, tnow, a0
 type(cell_type), pointer :: p
+logical :: divided
 
+divided = .false.
 tnow = istep*DELTA_T
 ncells0 = ncells
 do kcell = 1,ncells0
@@ -554,6 +585,7 @@ do kcell = 1,ncells0
 	a = p%a_n*(0.8*(g+1))**e
 	if (g >= 1) then
 		call Divider(kcell,ok)
+        divided = .true.
 		if (.not.ok) return
 		cycle
 	endif
@@ -570,6 +602,19 @@ do kcell = 1,ncells0
 !		stop
 !	endif
 enddo
+if (divided) then
+    nbmax = 0
+    do kcell = 1,ncells
+        call SetNeighbours(kcell)
+        if (cell_list(kcell)%nbrs > nbmax) then
+            nbmax = cell_list(kcell)%nbrs
+        endif
+    enddo
+    !write(*,*) 
+    !write(*,*) 'nbmax: ',nbmax
+    !write(*,*)
+endif
+
 ok = .true.
 end subroutine
 
@@ -617,8 +662,8 @@ if (allocated(p1%nbrlist)) then
 	deallocate(p1%nbrlist)
 endif
 allocate(p1%nbrlist(MAX_NBRS))
-call SetNeighbours(kcell0)
-call SetNeighbours(kcell1)
+!call SetNeighbours(kcell0)
+!call SetNeighbours(kcell1)
 ok = .true.
 end subroutine
 
@@ -672,7 +717,7 @@ logical :: ok
 
 istep = istep + 1
 if (mod(istep,1) == 0) then
-	write(logmsg,*) 'simulate_step: ',istep,nsteps,ncells
+	write(logmsg,*) 'step: ',istep,ncells
 	call logger(logmsg)
 endif
 ok = .true.
@@ -695,13 +740,17 @@ if (isolver == EXPLICIT_SOLVER) then
 		call Mover(dt)
 	enddo
 	ok = .true.
-elseif (isolver == EULER_SOLVER) then
-	nt = 1
-	call solver(dt,nt,ok)
-elseif (isolver == RKF45_SOLVER) then
-	nt = 20
-	dt = DELTA_T/nt
-	call solver(dt,nt,ok)
+else
+    if (isolver == SLOW_EULER_SOLVER .or. isolver == FAST_EULER_SOLVER) then
+	    nt = 1
+        dt = DELTA_T/nt
+	    call solver(dt,nt,ok)
+    elseif (isolver == RKF45_SOLVER) then
+	    nt = 10
+	    dt = DELTA_T/nt
+	    call solver(dt,nt,ok)
+    endif
+    call FixCentre
 endif
 if (ok) then
     res = 0
@@ -710,6 +759,19 @@ else
 endif
 end subroutine
 
+subroutine FixCentre
+real(REAL_KIND) :: origin(3)
+integer :: kcell
+
+origin = 0
+do kcell = 1,ncells
+    origin = origin + cell_list(kcell)%centre
+enddo
+origin = origin/ncells
+do kcell = 1,ncells
+    cell_list(kcell)%centre = cell_list(kcell)%centre - origin
+enddo
+end subroutine
 !--------------------------------------------------------------------------------
 !--------------------------------------------------------------------------------
 subroutine get_dimensions(nsteps_dim, deltat) BIND(C)

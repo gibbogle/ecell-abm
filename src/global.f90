@@ -38,14 +38,20 @@ type XYZ_type
     real(REAL_KIND) :: x, y, z
 end type
 
+type Fparam_type
+    real(REAL_KIND) :: a, b, c, e, g
+end type
+
 integer, parameter :: nflog=10, nfin=11, nfout=12, nfres=13
 integer, parameter :: MAX_CELLS = 1000
-integer, parameter :: MAX_NBRS = 24
+integer, parameter :: MAX_NBRS = 30
 real(REAL_KIND), parameter :: CYCLETIME0 = 12*60	! 12 hours -> minutes
 logical, parameter :: POLARITY = .false.
 integer, parameter :: EXPLICIT_SOLVER = 0
-integer, parameter :: EULER_SOLVER = 1
-integer, parameter :: RKF45_SOLVER = 2
+integer, parameter :: SLOW_EULER_SOLVER = 1
+integer, parameter :: FAST_EULER_SOLVER = 2
+integer, parameter :: RKF45_SOLVER = 3
+integer, parameter :: Fcase = 2
 
 character*(128) :: inputfile
 character*(128) :: outputfile
@@ -54,6 +60,7 @@ integer :: NX, NY, NZ, isolver
 integer :: Mnodes, ncpu_input, ncells, nsteps, istep
 integer :: seed(2)
 real(REAL_KIND) :: DELTA_T
+type(Fparam_type) :: FP1, FP2
 TYPE(winsockport) :: awp_0, awp_1
 logical :: use_TCP = .true.         ! turned off in para_main()
 logical :: use_CPORT1 = .false.
@@ -71,6 +78,10 @@ character*(2048) :: logmsg
 type(cell_type), allocatable, target :: cell_list(:)
 type(cell_type), allocatable, target :: cell_list0(:)
 integer, allocatable :: s1s2(:,:,:)
+
+real(REAL_KIND) :: run_dmax
+integer :: run_kmax, run_maxstep
+integer :: j_deriv
 
 logical :: dbug = .false.
 

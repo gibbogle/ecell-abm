@@ -6,7 +6,7 @@ implicit none
 
 contains
 
-subroutine invert(A,N,Ainv,res)
+subroutine invert(A,Ainv,N,res)
 real(REAL_KIND) :: A(N,N), Ainv(N,N)
 integer :: N, res
 TYPE(MKL_PARDISO_HANDLE), allocatable :: PT(:)
@@ -66,6 +66,8 @@ do j = 1,N
         Ainv(i,j) = x(k)
     enddo
 enddo
+phase = -1
+CALL pardiso (PT, maxfct, mnum, mtype, phase, N, AS, ivect, jvect, perm, nrhs, iparm, msglvl, b, x, err)
 deallocate(PT, perm, b, x, AS, ivect, jvect)
 res = 0
 end subroutine

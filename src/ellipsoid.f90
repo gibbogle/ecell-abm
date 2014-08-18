@@ -9,8 +9,6 @@ type line_type
 	real(REAL_KIND) :: p2(3)
 end type
 
-real, parameter :: dthreshold = 2.0
-
 contains
 
 !----------------------------------------------------------------------------------------
@@ -135,99 +133,43 @@ end subroutine
 !----------------------------------------------------------------------------------------
 subroutine CellContactForce(delta, s1, s2, F)
 real(REAL_KIND) :: delta, s1, s2, F
-real(REAL_KIND), parameter :: a = 2, b = 2, c = 20, e = 3.0
-real(REAL_KIND), parameter :: g = e/2.5
 real(REAL_KIND) :: d, t1, t2, tsum, afactor
 
-if (delta > 2*e) then
-    F = 0
-elseif (delta > 0) then
-	afactor = 1
-	if (POLARITY) then
-		t1 = abs(s1-0.5)
-		t2 = abs(s2-0.5)
-		tsum = t1 + t2
-		if (tsum < 0.5) then
-			afactor = 2*(1 + cos(tsum*PI))
-		else
-			tsum = 1 - tsum
-			afactor = 2*(1 + cos(tsum*PI))
-		endif
-	endif
-    F = afactor*exp(-((delta-e)/g)**2)      ! attraction
-else
-    d = delta
-    if (d < -a*0.99) d = -a*0.99
-    F = c*(-b/(a**2-d**2) + b/a**2) ! repulsion
-endif
-end subroutine
-
-!---------------------------------------------------------------------
-! The desired shape of the attraction-repulsion function is not obvious.
-! Clearly f -> 0 as d -> inf., and f -> -inf. as d -> K1(r0+r1) (K1 < 1)
-! Near d = r0+r1, say at d = K2(r0+r1), we want f = 0, and the slope
-! near the axis crossing should be small.
-! The attractive force will rise to a maximum, at say d = K3(r0+r1),
-! then decrease (in an inverse square way?) with increasing d.
-! As in attraction-repulsion.xlsx:
-! Using d = r0+r1 as the axis-crossing point (simple case to start)
-! and setting x = d/(r0+r1),
-! For x <= 1
-!	f(x) = -b/(x-1+a) + b/a
-!   Note: x < 1-a => ERROR (attraction)
-! for x >= 1
-!	f(x) = h.exp(-k(x-1)).(exp(g(x-1))-1)/(exp(g(x-1))+1)
-! The slopes are matched (= s) at x=1 when:
-!	b = s.a^2
-!	g = (2s)/h
-! Reasonable curve is obtained with:
-!	s = 0.1
-!	a = 0.5
-!	h = 20
-!	k = 3
-! Note that the slope is still a bit steep near x=1
-!---------------------------------------------------------------------
-real(REAL_KIND) function OCattraction(d,r0,r1)
-real(REAL_KIND) :: d, r0, r1, x
-real(REAL_KIND), parameter :: s = 0.1
-real(REAL_KIND), parameter :: a = 0.5
-real(REAL_KIND), parameter :: h = 20
-real(REAL_KIND), parameter :: k = 3
-real(REAL_KIND) :: b, g
-
-b = s*a**2
-g = (2*s)/h
-x = d/(r0+r1)
-! Note: 
-!   delta = d - (r0+r1)
-!   x-1 = delta/(r0+r1)
-
-if (x <= 1) then
-	if (x < 1-a) then
-		x = 1.01*(1-a)
-	endif
-	OCattraction = -b/(x-1+a) + b/a     ! repulsion
-else
-!	x = min(x,1.3)
-	OCattraction = h*exp(-k*(x-1))*(exp(g*(x-1))-1)/(exp(g*(x-1))+1)    ! attraction
-endif
-end function
-
-!----------------------------------------------------------------------------------------
-!----------------------------------------------------------------------------------------
-subroutine test_OCattraction
-real(REAL_KIND) :: d, r0, r1, dr, delta, f
-integer :: i
-
-r0 = 5
-r1 = 5
-dr = 0.1
-do i = 1,100
-    d = 5 + i*dr
-    delta = d - (r0+r1)
-    f = OCattraction(d,r0,r1)
-    write(nflog,'(4f10.3)') d,delta,delta/r0,f
-enddo
+if (Fcase == 1) then
+    if (delta > 2*FP1%e) then
+        F = 0
+    elseif (delta > 0) then
+	    afactor = 1
+	    if (POLARITY) then
+		    t1 = abs(s1-0.5)
+		    t2 = abs(s2-0.5)
+		    tsum = t1 + t2
+		    if (tsum < 0.5) then
+			    afactor = 2*(1 + cos(tsum*PI))
+		    else
+			    tsum = 1 - tsum
+			    afactor = 2*(1 + cos(tsum*PI))
+		    endif
+	    endif
+        F = afactor*exp(-((delta-FP1%e)/FP1%g)**2)      ! attraction
+    else
+        d = delta
+        if (d < -FP1%a*0.9999) d = -FP1%a*0.9999
+        F = FP1%c*(-FP1%b/(FP1%a**2-d**2) + FP1%b/FP1%a**2) ! repulsion
+    endif
+elseif (Fcase == 2) then
+    ! g = amplitude of Fa
+    ! e = value of delta at the peak of Fa
+    ! a = multiplying factor of Fr: when delta = -b, F = a
+    ! b = scaling factor of delta
+    if (delta > 2*FP2%e) then
+        F = 0
+    elseif (delta >= 0) then
+        F = (FP2%g/2)*(cos((delta-FP2%e)*PI/FP2%e) + 1)      ! attraction
+    else
+        F = -FP2%a*(-delta/FP2%b)**1.5
+    endif
+endif    
 end subroutine
 
 !----------------------------------------------------------------------------------------
@@ -247,7 +189,7 @@ integer :: res
 
 call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,tol,s1,s2,rad1,rad2,delta,res)
 ! delta is the cell separation at the "closest" points
-incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
+incontact = (delta < 2*FP2%e)	! there is a force to compute in the direction given by v (P1 -> P2)
 if (incontact) then
 !    write(nflog,'(a,5f6.2)') 's1, s2, rad1, rad2, delta: ',s1,s2,rad1,rad2,delta
     p1 = (2*s1-1)*ell1%a*ell1%orient    ! vector offset of sphere centre from ellipsoid centre
@@ -287,7 +229,7 @@ logical :: ok
 logical :: incontact
 real(REAL_KIND) :: p1(3), p2(3)		! Nearest points on main axes of cell1 and cell2 
 real(REAL_KIND) :: r1(3), r2(3)	    ! Displacement of contact points on cell1 and cell2 relative to centres
-real(REAL_KIND) :: rad1, rad2, vamp, v(3), famp
+real(REAL_KIND) :: rad1, rad2, vamp, v(3), famp, dlimit
 integer :: res
 
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
@@ -296,14 +238,20 @@ integer :: res
 call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,tol,s1,s2,rad1,rad2,delta,res)
 if (res /= 0 &
 	.or. isnan(delta) .or. isnan(s1) .or. isnan(s2) .or. isnan(rad1) .or. isnan(rad2)) then
-	write(*,'(a,i3,5f10.4)') 'Error: CellInteraction: res: ',res,s1,s2,rad1,rad2,delta
+	write(*,'(a,i3,5f9.4)') 'Error: CellInteraction: res: ',res,s1,s2,rad1,rad2,delta
+    write(*,*) 'a, b, centre, orient:'
 	write(*,'(a,8f8.3)') 'Cell 1: ',a1,b1,centre1,orient1
 	write(*,'(a,8f8.3)') 'Cell 2: ',a2,b2,centre2,orient2
 	ok = .false.
 	return
-endif
+    endif
 ! delta is the cell separation at the "closest" points
-incontact = (delta < dthreshold)	! there is a force to compute in the direction given by v (P1 -> P2)
+if (Fcase == 1) then
+    dlimit = 2*FP1%e
+elseif (Fcase == 2) then
+    dlimit = 2*FP2%e
+endif
+incontact = (delta < dlimit)	! there is a force to compute in the direction given by v (P1 -> P2)
 F = 0
 M1 = 0
 M2 = 0
@@ -315,7 +263,7 @@ if (incontact) then
     vamp = sqrt(dot_product(v,v))
     v = v/vamp        ! unit vector in direction P1 -> P2
 	call CellContactForce(delta, s1, s2, famp)  ! Note: famp > 0 ==> attraction
-	famp = max(famp,-Flimit)
+!	famp = max(famp,-Flimit)
     F = famp*v          ! force in the direction of v, i.e. from P1 to P2
 	if (dbug) write(nflog,'(a,6f8.4)') 's1,s2,delta,F: ',s1,s2,delta,F
 !	ell1%F = ell1%F + F

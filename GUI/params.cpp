@@ -8,7 +8,7 @@ Params::Params()
 {
     PARAM_SET params[] = {
 
-{"BLOCK_SIZE", 5, 0, 0,
+{"BLOCK_SIZE", 3, 0, 0,
 "Dimension of initial block",
 "Dimension N of initial block of cells (NxNxN)"},
 
@@ -30,7 +30,7 @@ Params::Params()
 "Length of the simulation.\n\
 [hours]"},
 
-{"DELTA_T", 300.0, 0, 0,
+{"DELTA_T", 100.0, 0, 0,
 "Time step",
 "Length of main time step, for cell death, division, etc.  Should be a divisor of 3600. \n\
 [sec]"},
@@ -47,7 +47,7 @@ Params::Params()
 "Second RNG seed",
 "The random number generator is seeded by a pair of integers.  Changing the seed generates a different Monte Carlo realization."},
 
-{"NCPU", 4, 1, 8,
+{"NCPU", 6, 1, 8,
 "Number of CPUs",
 "Number of CPUs to use for the simulation."},
 
@@ -60,7 +60,7 @@ Params::Params()
 "Velocity v = F/Fdrag, angular velocity w = M/Mdrag\n\
     F = total force vector, M = total moment vector, Fdrag = force drag coefficient, Mdrag = moment drag coefficient."},
 
-{"M_DRAG", 20, 0, 0,
+{"M_DRAG", 200, 0, 0,
 "Moment drag factor",
 "Moment drag factor."},
 

@@ -67,7 +67,7 @@ end do
 !	nsumm_interval = (60*60)/DELTA_T   ! number of time steps per hour
 !	write(*,*) 'nsumm_interval: ',nsumm_interval
 	do jstep = 1,Nsteps
-		write(*,*) 'jstep: ',jstep
+!		write(*,*) 'jstep: ',jstep
 		call simulate_step(res)
 		if (res /= 0) stop
 !		if (mod(jstep,nsumm_interval) == 0) then
