@@ -384,10 +384,8 @@ fsum = 0
 msum = 0
 call omp_init_lock(overlap_max_lock)
 call omp_init_lock(s1s2_lock)
-! ,a,b,centre,orient,a1,b1,centre1,orient1
-!$omp parallel do private(p,p1,k,jcell,s1,s2,delta,F,M1,M2,ok,overlap) !reduction(+:np) reduction(+:overlap_average)
+!$omp parallel do private(p,p1,k,jcell,s1,s2,delta,F,M1,M2,ok,overlap) reduction(+:np) reduction(+:overlap_average)
 do kcell = 1,ncells
-	write(*,*) istep,kcell
     p => cell_list(kcell)   
     p%F = 0
     p%M = 0
@@ -464,7 +462,7 @@ enddo
 call omp_destroy_lock(overlap_max_lock)
 call omp_destroy_lock(s1s2_lock)
 
-!overlap_average = overlap_average/np
+overlap_average = overlap_average/np
 do kcell = 1,ncells
     p => cell_list(kcell)
     p%F = (1-Falpha)*p%F + Falpha*p%Fprev
