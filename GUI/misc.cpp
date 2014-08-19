@@ -155,9 +155,9 @@ void ExecThread::run()
 	execute(&ncpu,const_cast<char *>(infile),&len_infile,const_cast<char *>(outfile),&len_outfile);
     get_dimensions(&nsteps,&DELTA_T);
 //    emit setupC(MAX_CHEMO, cused);
-    nsumm_interval = (60*60)/DELTA_T;   // number of time steps per hour
+    nsumm_interval = 60/DELTA_T;   // number of time steps per hour (DELTA_T is min)
 //    nsumm_interval = 60;
-    sprintf(msg,"exthread: nsteps: %d",nsteps);
+    sprintf(msg,"exthread: nsteps: %d DELTA_T: %f nsumm_interval: %d",nsteps,DELTA_T,nsumm_interval);
     LOG_MSG(msg);
 
     hour = 0;
@@ -192,14 +192,14 @@ void ExecThread::run()
         }
 
         if (i%nsumm_interval == 0) {
-			mutex1.lock();
+//			mutex1.lock();
 //            get_summary(summaryData, &i_hypoxia_cutoff, &i_growth_cutoff);
 //            get_concdata(&conc_nc, &conc_dx, concData);
 //            get_volprob(&vol_nv, &vol_v0, &vol_dv, volProb);
 //            get_oxyprob(&oxy_nv, &oxy_dv, oxyProb);
-            mutex1.unlock();
+//            mutex1.unlock();
             hour++;
-//            emit summary(hour);		// Emit signal to update summary plots, at hourly intervals
+            emit summary(hour);		// Emit signal to update summary plots, at hourly intervals
 //            summary_done.wait(&mutex3);
         }
 

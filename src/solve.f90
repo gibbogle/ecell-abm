@@ -141,193 +141,6 @@ end function
 ! We can precompute the list of cells that need to be considered for variable j.  This 
 ! could perhaps be done in the j=0 pass, but for clarity maybe not.
 !------------------------------------------------------------------------------------------
-subroutine JacobianFast1(Jac, f0, x, n, ok)
-real(REAL_KIND) :: Jac(n,n), f0(n), x(n)
-integer :: n
-logical :: ok
-real(REAL_KIND), allocatable :: xx(:), f1(:), Fbase(:,:,:), Mbase(:,:,:)
-real(REAL_KIND) :: t, dx
-integer :: i, j, jj
-integer :: i1, i2, jn, k1, k2, k, nzero, ntzero, nfeval, kpar=0
-real(REAL_KIND) :: a1, b1, centre1(3), orient1(3), a2, b2, centre2(3), orient2(3), s1, s2, delta
-real(REAL_KIND) :: FF(3), MM1(3), MM2(3), Fsum(3), Msum(3), R
-type(cell_type), pointer :: p1, p2
-integer, allocatable :: connected(:,:), nconnected(:)
-logical :: hit
-logical :: clean_list = .true.
-
-allocate(xx(n))
-!allocate(f0(n))
-allocate(f1(n))
-allocate(connected(n,MAX_NBRS+1))
-allocate(nconnected(n))
-allocate(Fbase(ncells,ncells,3))
-if (np == 6) then
-    allocate(Mbase(ncells,ncells,3))
-endif
-
-Jac(1:n,1:n) = 0
-
-! This can be improved by doing it in the j=0 pass, since that will enable dropping of cells that are 
-! neighbours but too far away to interact with cell i1.
-nconnected = 0
-do i1 = 1,ncells
-	p1 => cell_list(i1)
-	k1 = (i1-1)*np
-	do k = 1,np
-		j = k1 + k
-		if (.not.inlist(i1,connected(j,:),nconnected(j))) then
-			nconnected(j) = nconnected(j) + 1
-			connected(j,nconnected(j)) = i1
-		endif
-	enddo
-	do jn = 1,p1%nbrs
-		i2 = p1%nbrlist(jn)
-		k2 = (i2-1)*np
-		do k = 1,np
-			j = k1 + k
-			if (.not.inlist(i2,connected(j,:),nconnected(j))) then
-				nconnected(j) = nconnected(j) + 1
-				connected(j,nconnected(j)) = i2
-			endif
-		enddo
-	enddo
-enddo
-
-!do j = 1,n
-!	write(*,'(30i4)') j,nconnected(j),connected(j,	1:nconnected(j))
-!enddo
-!
-xx = x
-dx = 0.001
-nfeval = 0
-ntzero = 0
-F = 0
-if (np == 6) M = 0
-
-do j = 0,n		! column index, except for j=0 which evaluates the current f(:)
-	if (j /= 0) then
-		xx(j) = x(j) + dx
-!		F = Fbase
-!		if (np == 6) M = Mbase
-        F = 0
-    endif
-	nzero = 0
-	do i1 = 1,ncells
-		p1 => cell_list(i1)
-		a1 = p1%a
-		b1 = p1%b
-		k1 = (i1-1)*np
-		centre1 = xx(k1+1:k1+3)
-		if (np == 6) then
-			orient1 = xx(k1+4:k1+6)
-		else
-			orient1 = p1%orient
-		endif
-		if (np == 6) then
-			M(i1,1:ncells,:) = 0
-		endif
-		do jn = 1,p1%nbrs
-			i2 = p1%nbrlist(jn)
-            if (i2 == i1) cycle
-			!if (j > 0) then
-			!	if (.not.inlist(i2,connected(j,:),nconnected(j))) cycle
-			!endif
-			p2 => cell_list(i2)
-			a2 = p2%a
-			b2 = p2%b
-			k2 = (i2-1)*np
-			centre2 = xx(k2+1:k2+3)
-            if (SameCentre(centre1,centre2)) stop
-			if (np == 6) then
-				orient2 = xx(k2+4:k2+6)
-			else
-				orient2 = p2%orient
-			endif
-			s1 = s1s2(i1,i2,1)
-			s2 = s1s2(i1,i2,2)
-			call CellInteraction(a1,b1,centre1,orient1,a2,b2,centre2,orient2,s1,s2,delta,FF,MM1,MM2,ok)
-            if (.not.ok) then
-                write(*,*) 'istep, i1, i2: ',istep,i1,i2
-                return
-            endif
-			s1s2(i1,i2,1) = s1
-			s1s2(i1,i2,2) = s2
-			s1s2(i2,i1,1) = s1
-			s1s2(i2,i1,2) = s2
-			nfeval = nfeval + 1
-			if (FF(1)==0 .and. FF(2)==0 .and. FF(3)==0) then
-				nzero = nzero + 1
-				ntzero = ntzero + 1
-!				write(*,*) 'FF=0: ',j,i1,i2,nzero,ntzero,nfeval
-				
-				!if (clean_list) then
-				!	do k = 1,np
-				!		jj = k1 + k
-				!		call remove(i2,connected(jj,:),nconnected(jj))
-				!	enddo
-				!	do k = 1,np
-				!		jj = k2 + k
-				!		call remove(i1,connected(jj,:),nconnected(jj))
-				!	enddo
-				!endif
-	
-			endif
-			if (.not.ok) then
-				write(*,*) 'istep, i1, i2: ',istep,i1,i2
-				return
-			endif
-			F(i1,i2,:) = FF
-			F(i2,i1,:) = -F(i1,i2,:)
-			if (np == 6) then
-		        M(i1,i2,:) = MM1
-		        M(i2,i1,:) = MM2
-		    endif
-		enddo
-	enddo
-	if (j == 0) then
-		Fbase = F
-		if (np == 6) Mbase = M
-	endif
-	
-	f1 = 0
-	do i1 = 1,ncells
-		Fsum = 0
-		Msum = 0
-		p1 => cell_list(i1)
-		do jn = 1,p1%nbrs
-			i2 = p1%nbrlist(jn)
-			Fsum = Fsum + F(i1,i2,:)
-			if (np == 6) then
-		        Msum = Msum + M(i1,i2,:)
-		    endif
-		enddo
-		k1 = (i1-1)*np
-		f1(k1+1:k1+3) = Fsum/Fdrag
-		if (np == 6) then
-			call cross_product(Msum/Mdrag,orient1,f1(k1+4:k1+6))
-		endif
-	enddo
-	if (j == 0) then
-		f0 = f1
-	else
-		do i = 1,n
-			Jac(i,j) = (f1(i) - f0(i))/dx
-		enddo
-		xx(j) = x(j)	
-	endif
-enddo
-
-deallocate(xx)
-!deallocate(f0)
-deallocate(f1)
-deallocate(connected)
-deallocate(nconnected)
-deallocate(Fbase)
-if (np == 6) deallocate(Mbase)
-ok = .true.
-end subroutine
-
 subroutine JacobianFast(Jac, f0, x, n, ok)
 real(REAL_KIND) :: Jac(n,n), f0(n), x(n)
 integer :: n
@@ -553,6 +366,8 @@ real(REAL_KIND) :: FF(3), MM1(3), MM2(3), Fsum(3), Msum(3), R, mamp, vm(3), dang
 type(cell_type), pointer :: p1, p2
 logical :: ok
 
+overlap_average = 0
+overlap_max = 0
 F = 0
 if (np == 6) then
     M = 0
@@ -603,8 +418,13 @@ do i1 = 1,ncells
 			M(i1,i2,:) = MM1
 			M(i2,i1,:) = MM2
 		endif
+		if (delta < 0) then
+			overlap_average = overlap_average - delta
+			overlap_max = max(overlap_max,-delta)
+		endif
     enddo
 enddo
+overlap_average = overlap_average/ncells
 bigsum1 = 0
 bigsum2 = 0
 do i1 = 1,ncells

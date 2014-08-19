@@ -74,8 +74,8 @@ void __declspec(dllexport) min_dist(double aval1, double bval1, double *centre1,
 		if (x[i] < lo[i]) x[i] = lo[i];
 		if (x[i] > hi[i]) x[i] = hi[i];
 	}
-	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, tol, myvalue, mygrad, myvalgrad, NULL, NULL) ;
-//	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, 1.e-6, myvalue, mygrad, myvalgrad, work, iwork) ;
+//	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, tol, myvalue, mygrad, myvalgrad, NULL, NULL) ;
+	*res = asa_cg (x, lo, hi, n, &Stat, NULL, NULL, tol, myvalue, mygrad, myvalgrad, work, iwork) ;
 	*s1 = x[0];
 	*s2 = x[1];
 	*rad1 = r1;

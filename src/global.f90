@@ -79,7 +79,7 @@ type(cell_type), allocatable, target :: cell_list(:)
 type(cell_type), allocatable, target :: cell_list0(:)
 integer, allocatable :: s1s2(:,:,:)
 
-real(REAL_KIND) :: run_dmax
+real(REAL_KIND) :: run_dmax, overlap_average, overlap_max
 integer :: run_kmax, run_maxstep
 integer :: j_deriv
 

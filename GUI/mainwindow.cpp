@@ -1708,7 +1708,8 @@ void MainWindow::runServer()
 			nt_vtk = p.value;
 		}
 	}
-	started = true;
+    progressBar->setValue(0);
+    started = true;
 	exthread = new ExecThread(inputFile);
 	connect(exthread, SIGNAL(display()), this, SLOT(displayScene()));
 //    connect(exthread, SIGNAL(displayF()), this, SLOT(displayFld()));
@@ -1914,17 +1915,19 @@ void MainWindow::showSummary(int hr)
 	}
     hour = hr;
     exthread->mutex1.lock();
-    label_hour->setText(QString::number(int(hour)));
+    label_hour->setText(QString::number(hr));
+    sprintf(msg,"hour: %d",hr);
+    LOG_MSG(msg);
 
 //    hour = summaryData[0]*DELTA_T/(60*60);
 //    hour = summaryData[1]*DELTA_T/60;
 
-/*
+
     progress = int(100.*hour/hours);
 	progressBar->setValue(progress);
-	QString hourstr = QString::number(int(hour));
-	hour_display->setText(hourstr);
-
+//	QString hourstr = QString::number(int(hour));
+//	hour_display->setText(hourstr);
+/*
 	QString casename = newR->casename;
     newR->tnow[step] = step;
 
@@ -1964,7 +1967,7 @@ void MainWindow::showSummary(int hr)
     }
 */
     exthread->mutex1.unlock();
-    exthread->summary_done.wakeOne();
+//    exthread->summary_done.wakeOne();
 }
 //--------------------------------------------------------------------------------------------------------
 //--------------------------------------------------------------------------------------------------------

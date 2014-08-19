@@ -234,8 +234,9 @@ integer :: res
 
 !write(nflog,'(8f8.4)') ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient
 
-!call min_dist(ell1%a,ell1%b,ell1%centre,ell1%orient,ell2%a,ell2%b,ell2%centre,ell2%orient,s1,s2,rad1,rad2,delta)
 call min_dist(a1,b1,centre1,orient1,a2,b2,centre2,orient2,tol,s1,s2,rad1,rad2,delta,res)
+!delta = 0
+!res = 0
 if (res /= 0 &
 	.or. isnan(delta) .or. isnan(s1) .or. isnan(s2) .or. isnan(rad1) .or. isnan(rad2)) then
 	write(*,'(a,i3,5f9.4)') 'Error: CellInteraction: res: ',res,s1,s2,rad1,rad2,delta

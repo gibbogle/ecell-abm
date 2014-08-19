@@ -359,23 +359,36 @@ nancomponent =  (isnan(v(1)) .or. isnan(v(2)) .or. isnan(v(3)))
 end function
 
 !-----------------------------------------------------------------------------------------
+! Note duplication of effort - the interaction between each pair of cells is computed twice.
 !-----------------------------------------------------------------------------------------
 subroutine SumContacts(ok)
-integer :: kcell, k, jcell
-real(REAL_KIND) :: delta, s1, s2, famp, mamp, fsum, msum
+integer :: kcell, k, jcell, np
+real(REAL_KIND) :: delta, s1, s2, famp, mamp, fsum, msum, overlap
 real(REAL_KIND) :: F(3), M1(3), M2(3)
+integer :: overlap_max_lock, s1s2_lock
 logical :: incontact, ok
 type(cell_type), pointer :: p, p1
+
+real(REAL_KIND) :: a, b, centre(3), orient(3)
+real(REAL_KIND) :: a1, b1, centre1(3), orient1(3)
 
 do kcell = 1,ncells
     p => cell_list(kcell)
     p%F = 0
     p%M = 0
 enddo
+overlap_average = 0
+overlap_max = 0
+np = 0
 fsum = 0
 msum = 0
+call omp_init_lock(overlap_max_lock)
+call omp_init_lock(s1s2_lock)
+! ,a,b,centre,orient,a1,b1,centre1,orient1
+!$omp parallel do private(p,p1,k,jcell,s1,s2,delta,F,M1,M2,ok,overlap) !reduction(+:np) reduction(+:overlap_average)
 do kcell = 1,ncells
-    p => cell_list(kcell)
+	write(*,*) istep,kcell
+    p => cell_list(kcell)   
     p%F = 0
     p%M = 0
     do k = 1,p%nbrs
@@ -386,56 +399,72 @@ do kcell = 1,ncells
         endif
 	    if (dbug) write(nflog,*) 'Cell: ',kcell,' nbr: ',p%nbrs,k,jcell
         p1 => cell_list(jcell)
-        if (nancomponent(p%centre)) then
-			write(*,*) 'Bad p%centre: ',kcell,p%centre
-			ok = .false.
-			return
-		endif
-        if (nancomponent(p%orient)) then
-			write(*,*) 'Bad p%orient: ',kcell,p%orient
-			ok = .false.
-			return
-		endif
-        if (nancomponent(p1%centre)) then
-			write(*,*) 'Bad p1%centre: ',kcell,p1%centre
-			ok = .false.
-			return
-		endif
-        if (nancomponent(p1%orient)) then
-			write(*,*) 'Bad p1%orient: ',kcell,p1%orient
-			ok = .false.
-			return
-		endif
-		s1 = 0.5	! initial guesses
-		s2 = 0.5
+                
+!        if (nancomponent(p%centre)) then
+!			write(*,*) 'Bad p%centre: ',kcell,p%centre
+!			ok = .false.
+!			return
+!		endif
+!        if (nancomponent(p%orient)) then
+!			write(*,*) 'Bad p%orient: ',kcell,p%orient
+!			ok = .false.
+!			return
+!		endif
+!        if (nancomponent(p1%centre)) then
+!			write(*,*) 'Bad p1%centre: ',kcell,p1%centre
+!			ok = .false.
+!			return
+!		endif
+!        if (nancomponent(p1%orient)) then
+!			write(*,*) 'Bad p1%orient: ',kcell,p1%orient
+!			ok = .false.
+!			return
+!		endif
+		
+!		s1 = 0.5	! initial guesses
+!		s2 = 0.5
 		s1 = s1s2(kcell,jcell,1)
 		s2 = s1s2(kcell,jcell,2)
         call CellInteraction(p%a,p%b,p%centre,p%orient,p1%a,p1%b,p1%centre,p1%orient,s1,s2,delta,F,M1,M2,ok)
-        if (.not.ok) return
+        if (.not.ok) stop
+		call omp_set_lock(s1s2_lock)
 		s1s2(kcell,jcell,1) = s1
 		s1s2(kcell,jcell,2) = s2
 		s1s2(jcell,kcell,1) = s1
 		s1s2(jcell,kcell,2) = s2
+		call omp_unset_lock(s1s2_lock)
 	    p%F = p%F + F
 	    p%M = p%M + M1
-	    if (nancomponent(F)) then
-			write(*,'(a,2i6,3f8.4)') 'Bad F: ',kcell,k,F
-			stop
-		endif
-	    if (nancomponent(M1)) then
-			write(*,'(a,2i6,3f8.4)') 'Bad M1: ',kcell,k,M1
-			stop
-		endif
-!		if (kcell == 14) then
-!			write(nflog,'(2i4,f8.4,2x,3f8.4,2x,3f8.4)') kcell,jcell,delta,F,M1
+	    
+!	    if (nancomponent(F)) then
+!			write(*,'(a,2i6,3f8.4)') 'Bad F: ',kcell,k,F
+!			stop
 !		endif
+!	    if (nancomponent(M1)) then
+!			write(*,'(a,2i6,3f8.4)') 'Bad M1: ',kcell,k,M1
+!			stop
+!		endif
+
+		np = np+1
+		if (delta < 0) then
+			overlap = -delta
+			overlap_average = overlap_average + overlap
+			call omp_set_lock(overlap_max_lock)
+			overlap_max = max(overlap_max,overlap)
+			call omp_unset_lock(overlap_max_lock)
+		endif
     enddo
-    famp = sqrt(dot_product(p%F,p%F))
-    if (dbug) write(nflog,*) 'famp: ',famp
-    fsum = fsum + famp
-    mamp = sqrt(dot_product(p%M,p%M))
-    msum = msum + mamp
+!    famp = sqrt(dot_product(p%F,p%F))
+!    if (dbug) write(nflog,*) 'famp: ',famp
+!    fsum = fsum + famp
+!    mamp = sqrt(dot_product(p%M,p%M))
+!    msum = msum + mamp
 enddo
+!$omp end parallel do
+call omp_destroy_lock(overlap_max_lock)
+call omp_destroy_lock(s1s2_lock)
+
+!overlap_average = overlap_average/np
 do kcell = 1,ncells
     p => cell_list(kcell)
     p%F = (1-Falpha)*p%F + Falpha*p%Fprev
@@ -717,7 +746,7 @@ logical :: ok
 
 istep = istep + 1
 if (mod(istep,1) == 0) then
-	write(logmsg,*) 'step: ',istep,ncells
+	write(logmsg,'(a,2i6,2f10.3)') 'step, ncells, overlap (average, max): ',istep, ncells, overlap_average, overlap_max
 	call logger(logmsg)
 endif
 ok = .true.
